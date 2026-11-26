@@ -3,7 +3,8 @@ import { cloudinary } from './config';
 export const uploadsReady = Boolean(cloudinary.cloudName && cloudinary.preset);
 
 export type UploadKind = 'image' | 'video' | 'raw';
-export const limitsMB: Record<UploadKind, number> = { image: 20, video: 100, raw: 25 };
+// حدود خطة Cloudinary المجانية. ارفعها إن كانت خطتك أكبر.
+export const limitsMB: Record<UploadKind, number> = { image: 10, video: 100, raw: 10 };
 const extensions: Record<UploadKind, string[]> = {
   image: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
   video: ['mp4', 'mov', 'webm'],

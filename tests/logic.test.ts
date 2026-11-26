@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createLocalStore } from '../src/data/localStore';
 import { NOW } from '../src/data/store';
 import { addDays } from '../src/lib/dates';
+import { kindOf } from '../src/lib/cloudinary';
 import { score } from '../src/lib/quiz';
 import { bucketOf } from '../src/lib/tasks';
 import { resolveMedia, safeUrl } from '../src/lib/video';
@@ -52,5 +53,14 @@ describe('المخزن المحلي', () => {
     await store.set('a/1', { at: NOW });
     expect(typeof (await store.list('a'))[0].at).toBe('number');
     await expect(store.update('a/2', {})).rejects.toThrow();
+  });
+});
+
+describe('الرفع', () => {
+  it('يحدد نوع الملف من امتداده ويرفض غيره', () => {
+    expect(kindOf('Lecture.PDF')).toBe('raw');
+    expect(kindOf('a.b.jpeg')).toBe('image');
+    expect(kindOf('clip.mov')).toBe('video');
+    expect(kindOf('run.exe')).toBeNull();
   });
 });

@@ -27,7 +27,7 @@ VITE_DEMO=true npm run dev
 2. الصق محتوى [`firestore.rules`](firestore.rules) كاملاً مكانها ثم **Publish**. الملف يضم قواعد النسخة القديمة كما هي في مستودعها، وبعدها قسم `match /v2/main` الخاص بهذه النسخة.
 3. من **Authentication** تأكد أن **Email/Password** و**Google** مفعّلان، وأن `abdalrahmansadoon.github.io` ضمن **Authorized domains**.
 4. في مجموعة `admins` تأكد من وجود مستند **معرّفه بريدك** وفيه `active` = `true` (boolean). الحساب المسجل بكلمة مرور يجب أن يؤكد بريده ثم يخرج ويدخل.
-5. في Cloudinary يبقى الـ preset المسمى `eng_hub_unsigned` من نوع **Unsigned**، ومقيداً بالصيغ والحجم.
+5. في Cloudinary (السحابة `bkryyc0o`) يبقى الـ preset المسمى `eng_hub_unsigned` من نوع **Unsigned**، ومقيداً بالصيغ والحجم. وفي **Settings > Security** فعّل **Allow delivery of PDF and ZIP files**، فهو متوقف افتراضياً في الحسابات المجانية.
 6. ادخل بصفتك مشرفاً، افتح **المواد** واضغط **إضافة مواد إعدادي ترم أول السبع**.
 
 لا حاجة إلى فهارس مركبة ولا Firebase Storage ولا Cloud Functions.
@@ -41,6 +41,8 @@ VITE_DEMO=true npm run dev
 | Cloudinary مجلد `eng-hub` | الصور والفيديوهات والملفات المرفوعة (Firestore يحفظ الرابط فقط) |
 
 بيانات النسخة القديمة تبقى كما هي، ولا تظهر في هذه النسخة.
+
+حدود الرفع من الموقع: الصور 10، الملفات 10، الفيديو 100 ميجابايت (حدود خطة Cloudinary المجانية، وتتغير من `src/lib/cloudinary.ts`). للأكبر ضع رابط Google Drive أو يوتيوب بدل الرفع.
 
 ## النشر على GitHub Pages
 

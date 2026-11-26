@@ -8,7 +8,7 @@ const dict = {
   errPermission: ['لا تملك صلاحية لهذا الإجراء.', 'You do not have permission to do this.'],
   errLoad: ['تعذر تحميل البيانات', 'Could not load data'], retry: ['إعادة المحاولة', 'Try again'],
   errUploadConfig: ['الرفع غير مفعّل. أضف إعدادات Cloudinary.', 'Uploads are off. Add the Cloudinary settings.'],
-  errUploadSize: ['الملف كبير. الحد: الصور 20، الفيديو 100، الملفات 25 ميجابايت.', 'The file is too large. Limits: images 20 MB, video 100 MB, documents 25 MB.'],
+  errUploadSize: ['الملف كبير. الحد: الصور 10، الفيديو 100، الملفات 10 ميجابايت. للأكبر ضع رابط Drive أو يوتيوب.', 'The file is too large. Limits: images 10 MB, video 100 MB, documents 10 MB. For bigger files, paste a Drive or YouTube link.'],
   errUploadType: ['نوع الملف غير مدعوم هنا.', 'This file type is not supported here.'],
   errUpload: ['فشل رفع الملف.', 'The upload failed.'],
   errCredentials: ['البريد أو كلمة المرور غير صحيحة.', 'Wrong email or password.'],
