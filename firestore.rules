@@ -1,0 +1,133 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+    // المشرف: بريد مؤكد وله مستند في admins (يُنشأ من Firebase Console فقط).
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/admins/$(request.auth.token.email))
+        && get(/databases/$(database)/documents/admins/$(request.auth.token.email)).data.active == true;
+    }
+    function text(v, min, max) { return v is string && v.size() >= min && v.size() <= max; }
+    function ownName(name) { return name == get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.name; }
+    function cloudinaryOrEmpty(url) { return url == '' || (url is string && url.matches('https://res[.]cloudinary[.]com/.*')); }
+
+    match /admins/{email} {
+      allow get: if signedIn() && request.auth.token.email == email;
+    }
+
+    match /profiles/{uid} {
+      allow read: if signedIn();
+      allow create, update: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['name', 'photoURL'])
+        && text(request.resource.data.name, 1, 60)
+        && text(request.resource.data.photoURL, 0, 500);
+    }
+
+    match /users/{uid}/progress/{itemId} {
+      allow read, delete: if isSelf(uid);
+      allow create, update: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['subjectId', 'at'])
+        && text(request.resource.data.subjectId, 1, 100)
+        && request.resource.data.at == request.time;
+    }
+
+    match /subjects/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /items/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /tasks/{taskId} {
+      function forMe(audience) { return audience.hasAny(['all', request.auth.uid]); }
+      function taskForMe() { return forMe(get(/databases/$(database)/documents/tasks/$(taskId)).data.audience); }
+
+      allow read: if isAdmin() || (signedIn() && forMe(resource.data.audience));
+      allow write: if isAdmin();
+
+      match /responses/{uid} {
+        allow read: if isAdmin() || (signedIn() && taskForMe());
+        allow create, update: if isSelf(uid) && taskForMe()
+          && request.resource.data.keys().hasOnly(['status', 'name', 'updatedAt'])
+          && request.resource.data.status in ['accepted', 'declined', 'done']
+          && ownName(request.resource.data.name)
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if isSelf(uid) || isAdmin();
+      }
+
+      match /comments/{commentId} {
+        allow read: if isAdmin() || (signedIn() && taskForMe());
+        allow create: if signedIn() && (isAdmin() || taskForMe())
+          && request.resource.data.keys().hasOnly(['uid', 'name', 'text', 'createdAt'])
+          && request.resource.data.uid == request.auth.uid
+          && ownName(request.resource.data.name)
+          && text(request.resource.data.text, 1, 1000)
+          && request.resource.data.createdAt == request.time;
+        allow delete: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+      }
+    }
+
+    match /mutes/{uid} {
+      allow get: if isSelf(uid) || isAdmin();
+      allow list, write: if isAdmin();
+    }
+
+    match /rooms/{roomId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+
+      match /messages/{messageId} {
+        function roomOpen() {
+          return !exists(/databases/$(database)/documents/rooms/$(roomId))
+            || get(/databases/$(database)/documents/rooms/$(roomId)).data.locked != true;
+        }
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && (isAdmin() || (roomOpen() && !exists(/databases/$(database)/documents/mutes/$(request.auth.uid))))
+          && request.resource.data.keys().hasOnly(['uid', 'name', 'text', 'imageUrl', 'replyTo', 'createdAt'])
+          && request.resource.data.uid == request.auth.uid
+          && ownName(request.resource.data.name)
+          && text(request.resource.data.text, 0, 2000)
+          && cloudinaryOrEmpty(request.resource.data.imageUrl)
+          && (request.resource.data.text.size() > 0 || request.resource.data.imageUrl != '')
+          && text(request.resource.data.replyTo, 0, 200)
+          && request.resource.data.createdAt == request.time;
+        allow delete: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+      }
+    }
+
+    match /quizzes/{quizId} {
+      function quiz() { return get(/databases/$(database)/documents/quizzes/$(quizId)).data; }
+
+      allow read: if isAdmin() || (signedIn() && resource.data.published == true);
+      allow write: if isAdmin();
+
+      // الإجابات الصحيحة لا تُقرأ إلا بعد تسليم المحاولة.
+      match /private/{docId} {
+        allow read: if isAdmin()
+          || (signedIn() && exists(/databases/$(database)/documents/quizzes/$(quizId)/attempts/$(request.auth.uid)));
+        allow write: if isAdmin();
+      }
+
+      // محاولة واحدة لا تُعدَّل. الدرجة تُحسب من الإجابات ولا تُخزَّن.
+      match /attempts/{uid} {
+        allow get: if isSelf(uid) || isAdmin();
+        allow list: if isAdmin();
+        allow create: if isSelf(uid)
+          && quiz().published == true
+          && request.resource.data.keys().hasOnly(['answers', 'name', 'submittedAt'])
+          && request.resource.data.answers is list
+          && request.resource.data.answers.size() == quiz().questions.size()
+          && ownName(request.resource.data.name)
+          && request.resource.data.submittedAt == request.time;
+        allow delete: if isAdmin();
+      }
+    }
+  }
+}
