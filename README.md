@@ -13,46 +13,48 @@ npm install
 npm run dev
 ```
 
-دون إعداد Firebase يعمل الموقع في **الوضع التجريبي**: دخول كمشرف أو طالب، وبيانات أمثلة تُحفظ في المتصفح فقط.
+الموقع متصل افتراضياً بمشروع Firebase **`eng-hub-5c30a`** وبحساب Cloudinary المستخدم في النسخة القديمة (القيم في `src/lib/config.ts`). هذه قيم عامة تظهر في المتصفح، وليست أسراراً.
 
-## ربط Firebase (مشروع جديد)
+للتجربة دون أي اتصال (دخول كمشرف أو طالب وبيانات أمثلة في المتصفح فقط):
 
-1. من [Firebase Console](https://console.firebase.google.com) أنشئ مشروعاً، ثم أضف **Web app** وانسخ `apiKey` و`authDomain` و`projectId` و`appId`.
-2. من **Authentication > Sign-in method** فعّل **Email/Password** و**Google**.
-3. من **Authentication > Settings > Authorized domains** أضف `abdalrahmansadoon.github.io`.
-4. من **Firestore Database** أنشئ قاعدة بيانات في وضع الإنتاج.
-5. من تبويب **Rules** الصق محتوى ملف [`firestore.rules`](firestore.rules) ثم **Publish**.
-6. سجّل في الموقع بحسابك، ثم من Firestore أنشئ مجموعة `admins` وفيها مستند **معرّفه بريدك** (بأحرف صغيرة كما يظهر في Authentication) وبه حقل `active` من نوع boolean وقيمته `true`.
-7. الحساب المسجل بالبريد وكلمة المرور يجب أن يؤكد بريده قبل أن يصبح مشرفاً، ثم يخرج ويدخل من جديد. حساب Google مؤكد تلقائياً.
-8. بصفتك مشرفاً: افتح **المواد** واضغط **إضافة مواد إعدادي ترم أول السبع**.
+```bash
+VITE_DEMO=true npm run dev
+```
 
-لا حاجة إلى فهارس مركبة ولا Storage ولا Cloud Functions.
+## ما يلزم لتخزين البيانات (مرة واحدة)
+
+1. **انسخ قواعد Firestore الحالية** من Firebase Console > Firestore Database > Rules واحفظها في ملف. قد تختلف المنشورة عن التي في المستودع القديم.
+2. الصق محتوى [`firestore.rules`](firestore.rules) كاملاً مكانها ثم **Publish**. الملف يضم قواعد النسخة القديمة كما هي في مستودعها، وبعدها قسم `match /v2/main` الخاص بهذه النسخة.
+3. من **Authentication** تأكد أن **Email/Password** و**Google** مفعّلان، وأن `abdalrahmansadoon.github.io` ضمن **Authorized domains**.
+4. في مجموعة `admins` تأكد من وجود مستند **معرّفه بريدك** وفيه `active` = `true` (boolean). الحساب المسجل بكلمة مرور يجب أن يؤكد بريده ثم يخرج ويدخل.
+5. في Cloudinary يبقى الـ preset المسمى `eng_hub_unsigned` من نوع **Unsigned**، ومقيداً بالصيغ والحجم.
+6. ادخل بصفتك مشرفاً، افتح **المواد** واضغط **إضافة مواد إعدادي ترم أول السبع**.
+
+لا حاجة إلى فهارس مركبة ولا Firebase Storage ولا Cloud Functions.
+
+## أين تُحفظ البيانات
+
+| المكان | المحتوى |
+|---|---|
+| Firestore `v2/main/...` | الحسابات، المواد والمحتوى، المهام وردودها، الشات، الاختبارات، تقدم كل طالب |
+| Firestore `admins` | المشرفون (مشتركة مع النسخة القديمة) |
+| Cloudinary مجلد `eng-hub` | الصور والفيديوهات والملفات المرفوعة (Firestore يحفظ الرابط فقط) |
+
+بيانات النسخة القديمة تبقى كما هي، ولا تظهر في هذه النسخة.
 
 ## النشر على GitHub Pages
 
-1. **Settings > Pages > Source:** اختر **GitHub Actions**.
-2. **Settings > Secrets and variables > Actions > Variables** أضف:
+**Settings > Pages > Source:** اختر **GitHub Actions**. كل دفع إلى `main` ينشر الموقع عبر `deploy.yml`. لا تضف workflow آخر للنشر، فملفات المصدر لا تعمل دون بناء.
 
-| المتغير | القيمة |
-|---|---|
-| `VITE_FIREBASE_API_KEY` | `apiKey` |
-| `VITE_FIREBASE_AUTH_DOMAIN` | `authDomain` |
-| `VITE_FIREBASE_PROJECT_ID` | `projectId` |
-| `VITE_FIREBASE_APP_ID` | `appId` |
-| `VITE_CLOUDINARY_CLOUD_NAME` | اسم السحابة (في مشروعك القديم: `bkryyc0o`) |
-| `VITE_CLOUDINARY_UPLOAD_PRESET` | preset من نوع Unsigned (في مشروعك القديم: `eng_hub_unsigned`) |
-
-3. من **Actions** شغّل **Deploy to GitHub Pages**، أو ادفع أي تعديل إلى `main`.
-
-للتشغيل المحلي مع Firebase انسخ `.env.example` إلى `.env.local` واملأه.
+لاستخدام مشروع Firebase أو Cloudinary آخر غيّر `src/lib/config.ts`، أو للتشغيل المحلي انسخ `.env.example` إلى `.env.local`.
 
 ## حدود هذه النسخة
 
 - أي شخص يعرف الرابط يستطيع إنشاء حساب ورؤية المحتوى والشات وأسماء الأعضاء. لا توجد موافقة على الأعضاء بعد.
 - إشعارات المهام تصل ما دام الموقع مفتوحاً فقط. الإشعارات والموقع مغلق تحتاج إلى خادم.
-- الاختبار بمحاولة واحدة ويمكن للمشرف السماح بإعادتها. لا يوجد تعديل للأسئلة بعد الإنشاء.
-- روابط Cloudinary عامة لمن يملكها، فلا ترفع ملفات خاصة. اضبط الصيغ والحجم داخل الـ preset.
-- قواعد Firestore لم تُختبر على محاكي Firebase بعد.
+- المهام التي مضى على موعدها أكثر من 30 يوماً لا تظهر في صفحة اليوم (تبقى محفوظة).
+- الاختبار بمحاولة واحدة ويمكن للمشرف السماح بإعادتها. تعديل الأسئلة متاح ما لم يوجد من سلّم.
+- روابط Cloudinary عامة لمن يملكها، فلا ترفع ملفات خاصة.
 
 ## بنية الشيفرة
 
@@ -66,5 +68,6 @@ npm run dev
 
 ```bash
 npm test          # اختبارات المنطق
+# اختبارات قواعد Firestore تعمل في GitHub Actions (rules.yml) لأنها تحتاج محاكي Firebase
 npm run build     # فحص الأنواع والبناء
 ```

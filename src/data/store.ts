@@ -19,7 +19,8 @@ export interface Store {
   update(path: string, data: Data): Promise<void>;
   remove(path: string): Promise<void>;
   /** كتابة عدة مستندات دفعة واحدة: إما تنجح كلها أو لا شيء. */
-  setMany(entries: [path: string, data: Data][]): Promise<void>;
+  /** merge: يحافظ على الحقول غير المذكورة في المستند الموجود. */
+  setMany(entries: [path: string, data: Data][], options?: { merge?: boolean }): Promise<void>;
 }
 
 export interface AuthUser { uid: string; email: string; name: string; photoURL: string; emailVerified: boolean }

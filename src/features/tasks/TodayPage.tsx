@@ -7,8 +7,10 @@ import type { ResponseStatus, Task } from '../../data/types';
 import { formatDay, today } from '../../lib/dates';
 import { bucketOf, type Bucket } from '../../lib/tasks';
 import { useFeedback } from '../../ui/feedback';
+import { SubjectIcon } from '../../ui/icons';
 import { Dimension, Empty, PageHead, Status } from '../../ui/kit';
 import { usePrefs } from '../../ui/prefs';
+import { savedTerm } from '../subjects/terms';
 import { useSubjects } from '../useSubjects';
 import { useResponses } from './responses';
 import TaskForm from './TaskForm';
@@ -47,6 +49,9 @@ export default function TodayPage() {
   const subjects = useSubjects();
   const [adding, setAdding] = useState(false);
   const now = today();
+  const [year, term] = savedTerm();
+  const inTerm = subjects.data.filter((s) => s.year === year && s.term === term);
+  const shortcuts = inTerm.length ? inTerm : subjects.data.filter((s) => s.year === 'prep' && s.term === '1');
   const mine = (id: string) => responses.byTask[id]?.find((r) => r.id === user.uid)?.status;
   // لا نصنف المهمة قبل معرفة ردودها، حتى لا تقفز بين الأقسام.
   const ready = tasks.data.filter((x) => responses.byTask[x.id]);
@@ -68,6 +73,11 @@ export default function TodayPage() {
         <div><span>{t('openTasks')}</span><strong className="big">{open}</strong></div>
         <div className="tb-full"><span>{t('doneCount')}</span><Dimension value={done} total={todays.length} label={t('doneCount')} /></div>
       </section>
+      {shortcuts.length > 0 && (
+        <nav className="shortcuts" aria-label={t('subjects')}>
+          {shortcuts.map((s) => <Link key={s.id} to={`/subjects/${s.id}`}><span className="drawer-icon"><SubjectIcon name={s.icon} /></span><span>{subjects.label(s)}</span></Link>)}
+        </nav>
+      )}
       <Status loading={waiting} error={tasks.error} />
       {!tasks.loading && !tasks.error && !tasks.data.length && <Empty title={t('noTasks')}><span>{t(isAdmin ? 'noTasksAdmin' : 'noTasksStudent')}</span></Empty>}
       {groups.map(([key, heading]) => {

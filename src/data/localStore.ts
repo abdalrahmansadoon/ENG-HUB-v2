@@ -53,6 +53,9 @@ export function createLocalStore(seed: () => Record<string, Data>, persistence?:
       db[path] = { ...db[path], ...stamp(data) }; commit();
     },
     remove: async (path) => { delete db[path]; commit(); },
-    setMany: async (entries) => { for (const [path, data] of entries) db[path] = stamp(data); commit(); },
+    setMany: async (entries, options) => {
+      for (const [path, data] of entries) db[path] = { ...(options?.merge ? db[path] : {}), ...stamp(data) };
+      commit();
+    },
   };
 }

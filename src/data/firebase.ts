@@ -18,6 +18,12 @@ const decode = (id: string, data: DocumentData) => ({
   id,
 });
 
+/**
+ * بيانات هذه النسخة تحت v2/main حتى لا تختلط بمجموعات النسخة القديمة في المشروع نفسه.
+ * مجموعة admins وحدها مشتركة بينهما.
+ */
+export const resolvePath = (path: string) => (path.startsWith('admins/') ? path : `v2/main/${path}`);
+
 export function createFirebaseBackend(config: FirebaseConfig): Backend {
   const app = initializeApp(config);
   const fbAuth = getAuth(app);
@@ -30,24 +36,24 @@ export function createFirebaseBackend(config: FirebaseConfig): Backend {
       if (q.where) constraints.push(where(...q.where));
       if (q.orderBy) constraints.push(orderBy(...q.orderBy));
       if (q.limit) constraints.push(limit(q.limit));
-      return onSnapshot(query(collection(db, path), ...constraints),
+      return onSnapshot(query(collection(db, resolvePath(path)), ...constraints),
         (snap) => next(snap.docs.map((d) => decode(d.id, d.data(options)))), error);
     },
     watchDoc: (path, next, error) =>
-      onSnapshot(doc(db, path), { includeMetadataChanges: true }, (d) => {
+      onSnapshot(doc(db, resolvePath(path)), { includeMetadataChanges: true }, (d) => {
         // "غير موجود" من الذاكرة المحلية ليس تأكيداً: ننتظر رد الخادم.
         if (!d.exists() && d.metadata.fromCache) return;
         next(d.exists() ? decode(d.id, d.data(options)) : null);
       }, error),
-    list: async (path) => (await getDocs(collection(db, path))).docs.map((d) => decode(d.id, d.data(options))),
+    list: async (path) => (await getDocs(collection(db, resolvePath(path)))).docs.map((d) => decode(d.id, d.data(options))),
     newId: () => doc(collection(db, '_')).id,
-    add: async (path, data) => (await addDoc(collection(db, path), encode(data))).id,
-    set: (path, data) => setDoc(doc(db, path), encode(data)),
-    update: (path, data) => updateDoc(doc(db, path), encode(data)),
-    remove: (path) => deleteDoc(doc(db, path)),
-    async setMany(entries) {
+    add: async (path, data) => (await addDoc(collection(db, resolvePath(path)), encode(data))).id,
+    set: (path, data) => setDoc(doc(db, resolvePath(path)), encode(data)),
+    update: (path, data) => updateDoc(doc(db, resolvePath(path)), encode(data)),
+    remove: (path) => deleteDoc(doc(db, resolvePath(path))),
+    async setMany(entries, options) {
       const batch = writeBatch(db);
-      for (const [path, data] of entries) batch.set(doc(db, path), encode(data));
+      for (const [path, data] of entries) batch.set(doc(db, resolvePath(path)), encode(data), { merge: options?.merge ?? false });
       await batch.commit();
     },
   };

@@ -2,131 +2,548 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
-    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
-    // المشرف: بريد مؤكد وله مستند في admins (يُنشأ من Firebase Console فقط).
-    function isAdmin() {
-      return signedIn()
-        && request.auth.token.email_verified == true
-        && exists(/databases/$(database)/documents/admins/$(request.auth.token.email))
-        && get(/databases/$(database)/documents/admins/$(request.auth.token.email)).data.active == true;
+    function adminPath() {
+      return /databases/$(database)/documents/admins/$(request.auth.token.email);
     }
-    function text(v, min, max) { return v is string && v.size() >= min && v.size() <= max; }
-    function ownName(name) { return name == get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.name; }
-    function cloudinaryOrEmpty(url) { return url == '' || (url is string && url.matches('https://res[.]cloudinary[.]com/.*')); }
+    function hasActiveAdminRecord() {
+      return signedIn()
+        && request.auth.token.email is string
+        && exists(adminPath())
+        && get(adminPath()).data.email == request.auth.token.email
+        && get(adminPath()).data.active == true;
+    }
+    function role() {
+      return hasActiveAdminRecord() ? get(adminPath()).data.role : (signedIn() ? request.auth.token.role : null);
+    }
+    function isAdmin() {
+      return hasActiveAdminRecord() && (role() == 'admin' || role() == 'super-admin');
+    }
+    function isSuperAdmin() { return hasActiveAdminRecord() && role() == 'super-admin'; }
+    function isModerator() { return signedIn() && (role() == 'moderator' || isAdmin()); }
+    function activeUser() {
+      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'active';
+    }
+    function owns(userId) { return signedIn() && request.auth.uid == userId; }
+    function isChatLocked(conversationId) {
+      let settingsPath = /databases/$(database)/documents/conversations/$(conversationId)/settings/chat;
+      return exists(settingsPath)
+        && get(settingsPath).data.locked == true
+        && (!('startAt' in get(settingsPath).data) || get(settingsPath).data.startAt == null || get(settingsPath).data.startAt <= request.time)
+        && (!('endAt' in get(settingsPath).data) || get(settingsPath).data.endAt == null || get(settingsPath).data.endAt > request.time);
+    }
 
+    // Admin documents are provisioned manually in Firebase Console, never from the client.
     match /admins/{email} {
       allow get: if signedIn() && request.auth.token.email == email;
+      allow list: if isSuperAdmin();
+      allow create, update, delete: if false;
     }
 
-    match /profiles/{uid} {
-      allow read: if signedIn();
-      allow create, update: if isSelf(uid)
-        && request.resource.data.keys().hasOnly(['name', 'photoURL'])
-        && text(request.resource.data.name, 1, 60)
-        && text(request.resource.data.photoURL, 0, 500);
+    match /publicProfiles/{userId} {
+      function hasOnlyPublicProfileFields() {
+        return request.resource.data.keys().hasOnly([
+          'uid', 'displayName', 'photoURL', 'bio', 'academicYear', 'term',
+          'profileVisibility', 'showBioOnPublicProfile', 'showAcademicInfoOnPublicProfile', 'updatedAt'
+        ])
+        && request.resource.data.uid == userId
+        && request.resource.data.displayName is string
+        && request.resource.data.profileVisibility in ['public', 'private'];
+      }
+      allow read: if activeUser() && (
+        owns(userId) || isAdmin() || resource.data.profileVisibility == 'public'
+      );
+      allow create, update: if owns(userId) && hasOnlyPublicProfileFields();
+      allow delete: if owns(userId) || isAdmin();
     }
 
-    match /users/{uid}/progress/{itemId} {
-      allow read, delete: if isSelf(uid);
-      allow create, update: if isSelf(uid)
-        && request.resource.data.keys().hasOnly(['subjectId', 'at'])
-        && text(request.resource.data.subjectId, 1, 100)
-        && request.resource.data.at == request.time;
+    match /users/{userId} {
+      allow create: if owns(userId)
+        && request.resource.data.keys().hasOnly([
+          'displayName', 'photoURL', 'phone', 'bio', 'profileVisibility',
+          'showBioOnPublicProfile', 'showAcademicInfoOnPublicProfile',
+          'profileCompleted', 'updatedAt', 'email', 'role', 'status',
+          'academicYear', 'term', 'createdAt'
+        ])
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.role == 'student'
+        && request.resource.data.status == 'active'
+        && request.resource.data.profileCompleted == true
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() >= 2
+        && request.resource.data.profileVisibility in ['public', 'private']
+        && request.resource.data.showBioOnPublicProfile is bool
+        && request.resource.data.showAcademicInfoOnPublicProfile is bool;
+      allow read: if owns(userId) || isAdmin();
+      allow update: if owns(userId)
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'displayName', 'username', 'photoURL', 'bio', 'phone', 'profileVisibility', 'showBioOnPublicProfile', 'showAcademicInfoOnPublicProfile', 'profileCompleted',
+          'academicYear', 'term', 'locale', 'theme', 'notificationPreferences',
+          'privacy', 'updatedAt'
+        ])
+        || isAdmin();
+      allow delete: if owns(userId) || isAdmin();
+      match /hiddenChatMessages/{roomId} {
+        allow read, create, update, delete: if owns(userId) && activeUser();
+      }
+      match /chatBackgrounds/{roomId} {
+        allow read, create, update, delete: if owns(userId) && activeUser();
+      }
+      match /chatReadStates/{roomId} {
+        allow read: if owns(userId) && activeUser();
+        allow create, update: if owns(userId) && activeUser()
+          && request.resource.data.keys().hasOnly(['lastReadAt', 'updatedAt'])
+          && request.resource.data.lastReadAt == request.time
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if owns(userId) && activeUser();
+      }
+      match /chatSlowModeCooldowns/{roomId} {
+        allow read: if owns(userId) && activeUser();
+        allow create: if owns(userId) && activeUser()
+          && exists(/databases/$(database)/documents/conversations/$(roomId)/settings/chat)
+          && get(/databases/$(database)/documents/conversations/$(roomId)/settings/chat).data.slowModeEnabled == true
+          && get(/databases/$(database)/documents/conversations/$(roomId)/settings/chat).data.slowModeSeconds is int
+          && get(/databases/$(database)/documents/conversations/$(roomId)/settings/chat).data.slowModeSeconds >= 5
+          && request.resource.data.keys().hasOnly(['lastSentAt', 'seconds', 'updatedAt'])
+          && request.resource.data.seconds == get(/databases/$(database)/documents/conversations/$(roomId)/settings/chat).data.slowModeSeconds
+          && request.resource.data.lastSentAt == request.time
+          && request.resource.data.updatedAt == request.time;
+        allow update: if owns(userId) && activeUser()
+          && exists(/databases/$(database)/documents/conversations/$(roomId)/settings/chat)
+          && get(/databases/$(database)/documents/conversations/$(roomId)/settings/chat).data.slowModeEnabled == true
+          && resource.data.lastSentAt is timestamp
+          && resource.data.seconds is int
+          && resource.data.lastSentAt + duration.value(resource.data.seconds, 's') <= request.time
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSentAt', 'seconds', 'updatedAt'])
+          && request.resource.data.seconds == get(/databases/$(database)/documents/conversations/$(roomId)/settings/chat).data.slowModeSeconds
+          && request.resource.data.lastSentAt == request.time
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if false;
+      }
+      match /completedContent/{contentId} {
+        allow read, create, update, delete: if owns(userId) && signedIn();
+      }
     }
 
-    match /subjects/{id} {
-      allow read: if signedIn();
+    match /roles/{roleId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /academicYears/{yearId} {
+      allow read: if activeUser();
+      allow write: if isAdmin();
+      match /terms/{termId} {
+        allow read: if activeUser();
+        allow write: if isAdmin();
+      }
+    }
+
+    match /subjects/{subjectId} {
+      allow read: if activeUser() && (resource.data.isPublished == true || isAdmin());
+      allow create, update, delete: if isAdmin();
+      match /contentNodes/{nodeId} {
+        allow read: if activeUser() && (isAdmin() || resource.data.publicationStatus == 'published');
+        allow create, update, delete: if isAdmin();
+      }
+    }
+
+    match /lecturers/{lecturerId} {
+      allow read: if activeUser();
       allow write: if isAdmin();
     }
 
-    match /items/{id} {
-      allow read: if signedIn();
-      allow write: if isAdmin();
+    match /groups/{groupId} {
+      allow read: if activeUser() && (isAdmin() || exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)));
+      allow create, update, delete: if isAdmin();
+      match /members/{userId} {
+        allow read: if activeUser() && (owns(userId) || isModerator());
+        allow write: if activeUser() && isModerator();
+      }
+    }
+
+    match /lectures/{lectureId} {
+      allow read: if activeUser() && (resource.data.publicationStatus == 'published' || isAdmin());
+      allow create, update, delete: if isAdmin();
+      match /parts/{partId} {
+        allow read: if activeUser() && (get(/databases/$(database)/documents/lectures/$(lectureId)).data.publicationStatus == 'published' || isAdmin());
+        allow write: if isAdmin();
+      }
+      match /resources/{resourceId} {
+        allow read: if activeUser() && (get(/databases/$(database)/documents/lectures/$(lectureId)).data.publicationStatus == 'published' || isAdmin());
+        allow write: if isAdmin();
+      }
     }
 
     match /tasks/{taskId} {
-      function forMe(audience) { return audience.hasAny(['all', request.auth.uid]); }
-      function taskForMe() { return forMe(get(/databases/$(database)/documents/tasks/$(taskId)).data.audience); }
-
-      allow read: if isAdmin() || (signedIn() && forMe(resource.data.audience));
-      allow write: if isAdmin();
-
-      match /responses/{uid} {
-        allow read: if isAdmin() || (signedIn() && taskForMe());
-        allow create, update: if isSelf(uid) && taskForMe()
-          && request.resource.data.keys().hasOnly(['status', 'name', 'updatedAt'])
-          && request.resource.data.status in ['accepted', 'declined', 'done']
-          && ownName(request.resource.data.name)
-          && request.resource.data.updatedAt == request.time;
-        allow delete: if isSelf(uid) || isAdmin();
+      allow read: if activeUser() && (isAdmin() || resource.data.assignedTo.hasAny([request.auth.uid]) || resource.data.createdBy == request.auth.uid);
+      allow create: if isAdmin() || (activeUser() && request.resource.data.createdBy == request.auth.uid && request.resource.data.type == 'personal' && request.resource.data.assignedTo.hasAny([request.auth.uid]));
+      allow update: if isAdmin() || (activeUser() && resource.data.createdBy == request.auth.uid && resource.data.type == 'personal' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'priority', 'startAt', 'dueAt', 'updatedAt']));
+      allow delete: if isAdmin() || (activeUser() && resource.data.createdBy == request.auth.uid && resource.data.type == 'personal');
+      match /assignments/{userId} {
+        allow read: if activeUser() && (owns(userId) || isAdmin() || isModerator());
+        allow create: if isAdmin() || (owns(userId) && request.resource.data.userId == userId && get(/databases/$(database)/documents/tasks/$(taskId)).data.assignedTo.hasAny([request.auth.uid]));
+        allow update: if isAdmin() || (activeUser() && owns(userId) && request.resource.data.userId == resource.data.userId && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'startedAt', 'submittedAt', 'submissionText', 'submissionFiles', 'updatedAt'
+        ]));
+        allow delete: if isAdmin() || (activeUser() && owns(userId));
       }
-
+      match /submissions/{submissionId} {
+        allow read: if activeUser() && (resource.data.userId == request.auth.uid || isModerator());
+        allow create: if activeUser() && request.resource.data.userId == request.auth.uid
+          && get(/databases/$(database)/documents/tasks/$(taskId)).data.assignedTo.hasAny([request.auth.uid]);
+        allow update: if isModerator();
+        allow delete: if isAdmin() || (activeUser() && resource.data.userId == request.auth.uid);
+      }
       match /comments/{commentId} {
-        allow read: if isAdmin() || (signedIn() && taskForMe());
-        allow create: if signedIn() && (isAdmin() || taskForMe())
-          && request.resource.data.keys().hasOnly(['uid', 'name', 'text', 'createdAt'])
-          && request.resource.data.uid == request.auth.uid
-          && ownName(request.resource.data.name)
-          && text(request.resource.data.text, 1, 1000)
-          && request.resource.data.createdAt == request.time;
-        allow delete: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+        allow read: if activeUser() && (isModerator() || get(/databases/$(database)/documents/tasks/$(taskId)).data.assignedTo.hasAny([request.auth.uid]) || get(/databases/$(database)/documents/tasks/$(taskId)).data.createdBy == request.auth.uid);
+        allow create: if activeUser() && request.resource.data.authorId == request.auth.uid
+          && (get(/databases/$(database)/documents/tasks/$(taskId)).data.assignedTo.hasAny([request.auth.uid]) || isModerator() || get(/databases/$(database)/documents/tasks/$(taskId)).data.createdBy == request.auth.uid);
+        allow update: if isModerator() || (activeUser() && resource.data.authorId == request.auth.uid
+        && request.resource.data.authorId == resource.data.authorId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'editedAt', 'updatedAt']));
+      allow delete: if isModerator()
+        || (activeUser() && resource.data.authorId == request.auth.uid)
+        || (activeUser()
+          && get(/databases/$(database)/documents/tasks/$(taskId)).data.type == 'personal'
+          && get(/databases/$(database)/documents/tasks/$(taskId)).data.createdBy == request.auth.uid);
+      }
+      match /activity/{activityId} {
+        allow read: if isAdmin() || isModerator() || (signedIn() && resource.data.userId == request.auth.uid);
+        allow create, update: if false;
+        allow delete: if isAdmin();
       }
     }
 
-    match /mutes/{uid} {
-      allow get: if isSelf(uid) || isAdmin();
-      allow list, write: if isAdmin();
-    }
-
-    match /rooms/{roomId} {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-
-      match /messages/{messageId} {
-        function roomOpen() {
-          return !exists(/databases/$(database)/documents/rooms/$(roomId))
-            || get(/databases/$(database)/documents/rooms/$(roomId)).data.locked != true;
-        }
-        allow read: if signedIn();
-        allow create: if signedIn()
-          && (isAdmin() || (roomOpen() && !exists(/databases/$(database)/documents/mutes/$(request.auth.uid))))
-          && request.resource.data.keys().hasOnly(['uid', 'name', 'text', 'imageUrl', 'replyTo', 'createdAt'])
-          && request.resource.data.uid == request.auth.uid
-          && ownName(request.resource.data.name)
-          && text(request.resource.data.text, 0, 2000)
-          && cloudinaryOrEmpty(request.resource.data.imageUrl)
-          && (request.resource.data.text.size() > 0 || request.resource.data.imageUrl != '')
-          && text(request.resource.data.replyTo, 0, 200)
-          && request.resource.data.createdAt == request.time;
-        allow delete: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
-      }
-    }
-
-    match /quizzes/{quizId} {
-      function quiz() { return get(/databases/$(database)/documents/quizzes/$(quizId)).data; }
-
-      allow read: if isAdmin() || (signedIn() && resource.data.published == true);
-      allow write: if isAdmin();
-
-      // الإجابات الصحيحة لا تُقرأ إلا بعد تسليم المحاولة.
-      match /private/{docId} {
-        allow read: if isAdmin()
-          || (signedIn() && exists(/databases/$(database)/documents/quizzes/$(quizId)/attempts/$(request.auth.uid)));
+    match /exams/{examId} {
+      allow read: if activeUser() && (resource.data.publicationStatus == 'published' || isAdmin());
+      allow create, update, delete: if isAdmin();
+      match /questions/{questionId} {
+        allow read: if activeUser() && (resource.data.isVisible == true || isAdmin());
         allow write: if isAdmin();
       }
-
-      // محاولة واحدة لا تُعدَّل. الدرجة تُحسب من الإجابات ولا تُخزَّن.
-      match /attempts/{uid} {
-        allow get: if isSelf(uid) || isAdmin();
-        allow list: if isAdmin();
-        allow create: if isSelf(uid)
-          && quiz().published == true
-          && request.resource.data.keys().hasOnly(['answers', 'name', 'submittedAt'])
-          && request.resource.data.answers is list
-          && request.resource.data.answers.size() == quiz().questions.size()
-          && ownName(request.resource.data.name)
-          && request.resource.data.submittedAt == request.time;
+      match /attempts/{attemptId} {
+        allow read: if isAdmin() || (activeUser() && resource.data.userId == request.auth.uid);
+        allow create: if activeUser() && request.resource.data.userId == request.auth.uid
+          && get(/databases/$(database)/documents/exams/$(examId)).data.publicationStatus == 'published';
+        allow update: if isAdmin() || (activeUser() && resource.data.userId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'savedAt', 'submittedAt']));
         allow delete: if isAdmin();
+      }
+    }
+
+    match /files/{fileId} {
+      allow read: if activeUser() && (resource.data.visibility == 'public' || resource.data.ownerId == request.auth.uid || isModerator());
+      allow create: if activeUser() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isAdmin() || (activeUser() && resource.data.ownerId == request.auth.uid && request.resource.data.ownerId == resource.data.ownerId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'updatedAt']));
+      allow delete: if isAdmin() || (activeUser() && resource.data.ownerId == request.auth.uid);
+    }
+
+    match /conversations/{conversationId} {
+      allow read: if activeUser() && exists(/databases/$(database)/documents/conversations/$(conversationId)/members/$(request.auth.uid));
+      allow create: if activeUser()
+        && request.resource.data.createdBy == request.auth.uid
+        && (
+          (conversationId == 'general' && request.resource.data.type == 'global')
+          || (
+            request.resource.data.type == 'course'
+            && request.resource.data.courseId is string
+            && conversationId == 'course_' + request.resource.data.courseId
+            && exists(/databases/$(database)/documents/subjects/$(request.resource.data.courseId))
+            && get(/databases/$(database)/documents/subjects/$(request.resource.data.courseId)).data.isPublished == true
+          )
+        );
+      allow update: if isModerator();
+      allow delete: if isAdmin();
+      match /settings/{settingId} {
+        allow read: if activeUser() && exists(/databases/$(database)/documents/conversations/$(conversationId)/members/$(request.auth.uid)) && settingId == 'chat';
+        allow create, update, delete: if isModerator() && settingId == 'chat';
+      }
+      match /members/{userId} {
+        allow read: if activeUser() && (owns(userId) || isModerator());
+        allow create: if isModerator() || (
+          activeUser()
+          && owns(userId)
+          && (
+            (conversationId == 'general' && get(/databases/$(database)/documents/conversations/$(conversationId)).data.type == 'global')
+            || (
+              get(/databases/$(database)/documents/conversations/$(conversationId)).data.type == 'course'
+              && conversationId == 'course_' + get(/databases/$(database)/documents/conversations/$(conversationId)).data.courseId
+              && exists(/databases/$(database)/documents/subjects/$(get(/databases/$(database)/documents/conversations/$(conversationId)).data.courseId))
+              && get(/databases/$(database)/documents/subjects/$(get(/databases/$(database)/documents/conversations/$(conversationId)).data.courseId)).data.isPublished == true
+            )
+          )
+        );
+        allow update: if isModerator() || (
+          activeUser()
+          && owns(userId)
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL', 'lastSeenAt'])
+        );
+        allow delete: if isModerator() || (activeUser() && owns(userId));
+      }
+      match /mutes/{userId} {
+        allow read: if activeUser() && (owns(userId) || isModerator());
+        allow create, update, delete: if isModerator();
+      }
+      match /warnings/{warningId} {
+        allow read: if activeUser() && (isModerator() || resource.data.userId == request.auth.uid);
+        allow create: if isModerator() && request.resource.data.createdBy == request.auth.uid;
+        allow update, delete: if isModerator();
+      }
+      match /announcements/{announcementId} {
+        allow read: if activeUser() && exists(/databases/$(database)/documents/conversations/$(conversationId)/members/$(request.auth.uid));
+        allow create: if isModerator()
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() >= 4
+          && request.resource.data.text.size() <= 2500;
+        allow update: if isModerator()
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'updatedAt'])
+          && request.resource.data.text is string
+          && request.resource.data.text.size() >= 4
+          && request.resource.data.text.size() <= 2500;
+        allow delete: if isModerator();
+      }
+      match /messages/{messageId} {
+        allow read: if activeUser() && exists(/databases/$(database)/documents/conversations/$(conversationId)/members/$(request.auth.uid));
+        allow create: if activeUser()
+          && exists(/databases/$(database)/documents/conversations/$(conversationId)/members/$(request.auth.uid))
+          && request.resource.data.senderId == request.auth.uid
+          && (isModerator() || !isChatLocked(conversationId))
+          && (!exists(/databases/$(database)/documents/conversations/$(conversationId)/mutes/$(request.auth.uid))
+            || get(/databases/$(database)/documents/conversations/$(conversationId)/mutes/$(request.auth.uid)).data.muted != true
+            || (get(/databases/$(database)/documents/conversations/$(conversationId)/mutes/$(request.auth.uid)).data.mutedUntil is timestamp
+              && get(/databases/$(database)/documents/conversations/$(conversationId)/mutes/$(request.auth.uid)).data.mutedUntil <= request.time))
+          && (
+            isModerator()
+            || !(
+              exists(/databases/$(database)/documents/conversations/$(conversationId)/settings/chat)
+              && get(/databases/$(database)/documents/conversations/$(conversationId)/settings/chat).data.slowModeEnabled == true
+              && get(/databases/$(database)/documents/conversations/$(conversationId)/settings/chat).data.slowModeSeconds is int
+              && get(/databases/$(database)/documents/conversations/$(conversationId)/settings/chat).data.slowModeSeconds >= 5
+            )
+            || (
+              (!exists(/databases/$(database)/documents/users/$(request.auth.uid)/chatSlowModeCooldowns/$(conversationId))
+                || get(/databases/$(database)/documents/users/$(request.auth.uid)/chatSlowModeCooldowns/$(conversationId)).data.lastSentAt + duration.value(get(/databases/$(database)/documents/conversations/$(conversationId)/settings/chat).data.slowModeSeconds, 's') <= request.time)
+              && existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)/chatSlowModeCooldowns/$(conversationId))
+              && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)/chatSlowModeCooldowns/$(conversationId)).data.lastSentAt == request.time
+              && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)/chatSlowModeCooldowns/$(conversationId)).data.seconds == get(/databases/$(database)/documents/conversations/$(conversationId)/settings/chat).data.slowModeSeconds
+            )
+          );
+        allow update: if isModerator()
+          || (activeUser()
+            && resource.data.senderId == request.auth.uid
+            && request.resource.data.senderId == resource.data.senderId
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'edited', 'editedAt', 'attachments'])
+            && request.time < resource.data.createdAt + duration.value(15, 'm'))
+          || (activeUser()
+            && resource.data.senderId == request.auth.uid
+            && request.resource.data.senderId == resource.data.senderId
+            && request.resource.data.deleted == true
+            && request.resource.data.deletedBy == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'deletedBy', 'text', 'attachments']))
+          || (activeUser()
+            && exists(/databases/$(database)/documents/conversations/$(conversationId)/members/$(request.auth.uid))
+            && request.resource.data.senderId == resource.data.senderId
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']));
+        allow delete: if isModerator();
+      }
+    }
+
+    match /notifications/{notificationId} {
+      allow read, delete: if activeUser() && resource.data.userId == request.auth.uid;
+      allow update: if activeUser() && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt', 'updatedAt']);
+      allow create: if false;
+    }
+    match /devices/{deviceId} {
+      function validDeviceFields() {
+        return request.resource.data.keys().hasOnly([
+          'userId', 'token', 'platform', 'lastSeenAt', 'updatedAt', 'userAgent'
+        ])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.token is string
+        && request.resource.data.token.size() >= 20
+        && request.resource.data.platform == 'web'
+        && request.resource.data.lastSeenAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.userAgent is string;
+      }
+      allow read, delete: if activeUser() && resource.data.userId == request.auth.uid;
+      allow create: if activeUser() && validDeviceFields();
+      allow update: if activeUser()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['token', 'platform', 'lastSeenAt', 'updatedAt', 'userAgent'])
+        && validDeviceFields();
+    }
+    match /studySessions/{sessionId} {
+      allow read, delete: if activeUser() && resource.data.userId == request.auth.uid;
+      allow update: if activeUser() && resource.data.userId == request.auth.uid && request.resource.data.userId == resource.data.userId;
+      allow create: if activeUser() && request.resource.data.userId == request.auth.uid;
+    }
+    match /notes/{noteId} {
+      allow read, delete: if activeUser() && resource.data.userId == request.auth.uid;
+      allow update: if activeUser() && resource.data.userId == request.auth.uid && request.resource.data.userId == resource.data.userId;
+      allow create: if activeUser() && request.resource.data.userId == request.auth.uid;
+    }
+    match /flashcardDecks/{deckId} {
+      allow read: if activeUser() && (resource.data.visibility == 'public' || resource.data.ownerId == request.auth.uid);
+      allow create: if activeUser() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if activeUser() && resource.data.ownerId == request.auth.uid && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if activeUser() && resource.data.ownerId == request.auth.uid;
+      match /cards/{cardId} {
+        allow read, write: if activeUser() && get(/databases/$(database)/documents/flashcardDecks/$(deckId)).data.ownerId == request.auth.uid;
+      }
+    }
+    match /announcements/{announcementId} {
+      allow read: if activeUser() && resource.data.status == 'published';
+      allow write: if isAdmin();
+    }
+    match /reports/{reportId} {
+      allow create: if signedIn() && request.resource.data.reporterId == request.auth.uid;
+      allow read: if isModerator() || (signedIn() && resource.data.reporterId == request.auth.uid);
+      allow update: if isModerator();
+      allow delete: if isModerator() || (signedIn() && resource.data.reporterId == request.auth.uid);
+    }
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /systemSettings/{settingId} {
+      allow read: if activeUser();
+      allow write: if settingId in ['cloudinary', 'academicCalendar'] && isAdmin();
+    }
+
+    // ------------------------------------------------------------------
+    // ENG HUB v2: كل بيانات النسخة الجديدة تحت v2/main. ما فوق هذا السطر قواعد النسخة القديمة كما هي.
+    // ------------------------------------------------------------------
+    match /v2/main {
+      function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+      // المشرف: بريد مؤكد وله مستند في admins (يُنشأ من Firebase Console فقط).
+      function v2Admin() {
+        return signedIn()
+          && request.auth.token.email_verified == true
+          && exists(/databases/$(database)/documents/admins/$(request.auth.token.email))
+          && get(/databases/$(database)/documents/admins/$(request.auth.token.email)).data.active == true;
+      }
+      function text(v, min, max) { return v is string && v.size() >= min && v.size() <= max; }
+      function ownName(name) { return name == get(/databases/$(database)/documents/v2/main/profiles/$(request.auth.uid)).data.name; }
+      function cloudinaryOrEmpty(url) { return url == '' || (url is string && url.matches('https://res[.]cloudinary[.]com/.*')); }
+
+      match /profiles/{uid} {
+        allow read: if signedIn();
+        allow create, update: if isSelf(uid)
+          && request.resource.data.keys().hasOnly(['name', 'photoURL'])
+          && text(request.resource.data.name, 1, 60)
+          && text(request.resource.data.photoURL, 0, 500);
+      }
+
+      match /users/{uid}/progress/{itemId} {
+        allow read, delete: if isSelf(uid);
+        allow create, update: if isSelf(uid)
+          && request.resource.data.keys().hasOnly(['subjectId', 'at'])
+          && text(request.resource.data.subjectId, 1, 100)
+          && request.resource.data.at == request.time;
+      }
+
+      match /subjects/{id} {
+        allow read: if signedIn();
+        allow write: if v2Admin();
+      }
+
+      match /items/{id} {
+        allow read: if signedIn();
+        allow write: if v2Admin();
+      }
+
+      match /tasks/{taskId} {
+        function forMe(audience) { return audience.hasAny(['all', request.auth.uid]); }
+        function taskForMe() { return forMe(get(/databases/$(database)/documents/v2/main/tasks/$(taskId)).data.audience); }
+
+        allow read: if v2Admin() || (signedIn() && forMe(resource.data.audience));
+        allow write: if v2Admin();
+
+        match /responses/{uid} {
+          allow read: if v2Admin() || (signedIn() && taskForMe());
+          allow create, update: if isSelf(uid) && taskForMe()
+            && request.resource.data.keys().hasOnly(['status', 'name', 'updatedAt'])
+            && request.resource.data.status in ['accepted', 'declined', 'done']
+            && ownName(request.resource.data.name)
+            && request.resource.data.updatedAt == request.time;
+          allow delete: if isSelf(uid) || v2Admin();
+        }
+
+        match /comments/{commentId} {
+          allow read: if v2Admin() || (signedIn() && taskForMe());
+          allow create: if signedIn() && (v2Admin() || taskForMe())
+            && request.resource.data.keys().hasOnly(['uid', 'name', 'text', 'createdAt'])
+            && request.resource.data.uid == request.auth.uid
+            && ownName(request.resource.data.name)
+            && text(request.resource.data.text, 1, 1000)
+            && request.resource.data.createdAt == request.time;
+          allow delete: if v2Admin() || (signedIn() && resource.data.uid == request.auth.uid);
+        }
+      }
+
+      match /mutes/{uid} {
+        allow get: if isSelf(uid) || v2Admin();
+        allow list, write: if v2Admin();
+      }
+
+      match /rooms/{roomId} {
+        allow read: if signedIn();
+        allow write: if v2Admin();
+
+        match /messages/{messageId} {
+          function roomOpen() {
+            return !exists(/databases/$(database)/documents/v2/main/rooms/$(roomId))
+              || get(/databases/$(database)/documents/v2/main/rooms/$(roomId)).data.locked != true;
+          }
+          allow read: if signedIn();
+          allow create: if signedIn()
+            && (v2Admin() || (roomOpen() && !exists(/databases/$(database)/documents/v2/main/mutes/$(request.auth.uid))))
+            && request.resource.data.keys().hasOnly(['uid', 'name', 'text', 'imageUrl', 'replyTo', 'createdAt'])
+            && request.resource.data.uid == request.auth.uid
+            && ownName(request.resource.data.name)
+            && text(request.resource.data.text, 0, 2000)
+            && cloudinaryOrEmpty(request.resource.data.imageUrl)
+            && (request.resource.data.text.size() > 0 || request.resource.data.imageUrl != '')
+            && text(request.resource.data.replyTo, 0, 200)
+            && request.resource.data.createdAt == request.time;
+          allow delete: if v2Admin() || (signedIn() && resource.data.uid == request.auth.uid);
+        }
+      }
+
+      match /quizzes/{quizId} {
+        function quiz() { return get(/databases/$(database)/documents/v2/main/quizzes/$(quizId)).data; }
+
+        allow read: if v2Admin() || (signedIn() && resource.data.published == true);
+        allow write: if v2Admin();
+
+        // الإجابات الصحيحة لا تُقرأ إلا بعد تسليم المحاولة.
+        match /private/{docId} {
+          allow read: if v2Admin()
+            || (signedIn() && exists(/databases/$(database)/documents/v2/main/quizzes/$(quizId)/attempts/$(request.auth.uid)));
+          allow write: if v2Admin();
+        }
+
+        // محاولة واحدة لا تُعدَّل. الدرجة تُحسب من الإجابات ولا تُخزَّن.
+        match /attempts/{uid} {
+          allow get: if isSelf(uid) || v2Admin();
+          allow list: if v2Admin();
+          allow create: if isSelf(uid)
+            && quiz().published == true
+            && request.resource.data.keys().hasOnly(['answers', 'name', 'submittedAt'])
+            && request.resource.data.answers is list
+            && request.resource.data.answers.size() == quiz().questions.size()
+            && ownName(request.resource.data.name)
+            && request.resource.data.submittedAt == request.time;
+          allow delete: if v2Admin();
+        }
       }
     }
   }

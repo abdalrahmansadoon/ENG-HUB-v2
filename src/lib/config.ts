@@ -2,18 +2,19 @@ const env = import.meta.env;
 
 export interface FirebaseConfig { apiKey: string; authDomain: string; projectId: string; appId: string }
 
+// إعدادات الويب العامة لمشروع ENG HUB (نفسها المستخدمة في النسخة القديمة). ليست أسراراً:
+// الحماية في قواعد Firestore. يمكن تغييرها بمتغيرات VITE_*.
 const firebase: FirebaseConfig = {
-  apiKey: env.VITE_FIREBASE_API_KEY ?? '',
-  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN ?? '',
-  projectId: env.VITE_FIREBASE_PROJECT_ID ?? '',
-  appId: env.VITE_FIREBASE_APP_ID ?? '',
+  apiKey: env.VITE_FIREBASE_API_KEY || 'AIzaSyDWrjLwgj8r5JPWfzbOIAx76MF7ydCLOB8',
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || 'eng-hub-5c30a.firebaseapp.com',
+  projectId: env.VITE_FIREBASE_PROJECT_ID || 'eng-hub-5c30a',
+  appId: env.VITE_FIREBASE_APP_ID || '1:366947709379:web:747b0aba2d08056b734d76',
 };
-const filled = Object.values(firebase).filter(Boolean).length;
 
-export const firebaseConfig = filled === 4 ? firebase : null;
-/** إعداد ناقص: نعرض خطأ واضحاً بدل التحول بصمت إلى الوضع التجريبي. */
-export const partialConfig = filled > 0 && filled < 4;
+/** VITE_DEMO=true يشغل الموقع ببيانات أمثلة دون أي اتصال بـ Firebase. */
+export const firebaseConfig = env.VITE_DEMO === 'true' ? null : firebase;
+
 export const cloudinary = {
-  cloudName: env.VITE_CLOUDINARY_CLOUD_NAME ?? '',
-  preset: env.VITE_CLOUDINARY_UPLOAD_PRESET ?? '',
+  cloudName: env.VITE_CLOUDINARY_CLOUD_NAME || 'bkryyc0o',
+  preset: env.VITE_CLOUDINARY_UPLOAD_PRESET || 'eng_hub_unsigned',
 };

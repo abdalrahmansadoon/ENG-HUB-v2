@@ -7,7 +7,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import { BackendContext } from './data/context';
 import type { Backend } from './data/store';
-import { firebaseConfig, partialConfig } from './lib/config';
+import { firebaseConfig } from './lib/config';
 import { translate } from './lib/i18n';
 import './styles/app.css';
 import { FeedbackProvider } from './ui/feedback';
@@ -27,7 +27,6 @@ class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
 const root = createRoot(document.getElementById('root')!);
 
 async function start() {
-  if (partialConfig) { root.render(<p className="empty">{translate(lang(), 'errConfig')}</p>); return; }
   // يُحمّل Firebase فقط عند الحاجة إليه.
   const backend: Backend = firebaseConfig
     ? (await import('./data/firebase')).createFirebaseBackend(firebaseConfig)

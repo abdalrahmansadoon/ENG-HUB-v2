@@ -45,7 +45,14 @@ function SignedIn({ user }: { user: AuthUser }) {
   }, [profile.loading, profile.error, profile.data, user, store, run]);
 
   if (profile.error || failed) {
-    return <><Status error={profile.error ?? new Error('profile')} /><button className="text-btn" onClick={() => auth.signOut()}>{t('signOut')}</button></>;
+    const refused = (profile.error as { code?: string } | null)?.code === 'permission-denied';
+    return (
+      <div className="auth">
+        {refused ? <p className="banner bad">{t('errRules')}</p> : <Status error={profile.error ?? new Error('profile')} />}
+        <button className="btn" onClick={() => location.reload()}>{t('retry')}</button>
+        <button className="text-btn" onClick={() => auth.signOut()}>{t('signOut')}</button>
+      </div>
+    );
   }
   // دون اتصال لا يمكن تأكيد صلاحية المشرف: ندخل كعضو عادي حتى يعود الاتصال.
   if (!profile.data || (admin.loading && navigator.onLine)) return <Status loading />;

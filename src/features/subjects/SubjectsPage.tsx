@@ -10,7 +10,7 @@ import { Dimension, Empty, PageHead, Status } from '../../ui/kit';
 import { usePrefs } from '../../ui/prefs';
 import { useSubjects } from '../useSubjects';
 import SubjectForm from './SubjectForm';
-import { terms, years } from './terms';
+import { rememberTerm, savedTerm, terms, years } from './terms';
 
 export default function SubjectsPage() {
   const store = useStore();
@@ -21,18 +21,39 @@ export default function SubjectsPage() {
   const items = useCollection<Item>('items');
   const progress = useCollection<Progress>(`users/${user.uid}/progress`);
   const [params, setParams] = useSearchParams();
-  const year = params.get('year') ?? 'prep';
-  const term = params.get('term') ?? '1';
+  const [savedYear, savedTermId] = savedTerm();
+  const year = params.get('year') ?? savedYear;
+  const term = params.get('term') ?? savedTermId;
   const [adding, setAdding] = useState(false);
   const shown = subjects.data.filter((s) => s.year === year && s.term === term);
   const studied = new Set(progress.data.map((p) => p.id));
-  const select = (key: string, value: string) => setParams({ year, term, [key]: value }, { replace: true });
+  const [search, setSearch] = useState('');
+  const needle = search.trim().toLocaleLowerCase();
+  const matches = needle
+    ? items.data.filter((i) => `${i.title} ${i.group}`.toLocaleLowerCase().includes(needle) && subjects.data.some((s) => s.id === i.subjectId))
+    : [];
+  const select = (key: 'year' | 'term', value: string) => {
+    const next = { year, term, [key]: value };
+    rememberTerm(next.year, next.term);
+    setParams(next, { replace: true });
+  };
 
   return (
     <>
       <PageHead title={t('subjects')}>
         {isAdmin && <button className="btn primary" onClick={() => setAdding(true)}><Plus size={18} aria-hidden />{t('addSubject')}</button>}
       </PageHead>
+      <input type="search" aria-label={t('searchContent')} placeholder={t('searchContent')} value={search} onChange={(e) => setSearch(e.target.value)} />
+      {needle ? (
+        <>
+          <Status loading={items.loading} error={items.error} />
+          {!items.loading && !matches.length && <Empty title={t('noMatches')} />}
+          {matches.length > 0 && <ul className="sheet list">{matches.map((i) => (
+            <li key={i.id} className="row"><Link to={`/subjects/${i.subjectId}/items/${i.id}`} className="row-main"><strong>{i.title}</strong>
+              <span className="meta"><span>{subjects.nameOf(i.subjectId)}</span><span>{t(i.category)}</span>{i.group && <span>{i.group}</span>}</span></Link></li>
+          ))}</ul>}
+        </>
+      ) : <>
       <div className="filters">
         <select aria-label={t('year')} value={year} onChange={(e) => select('year', e.target.value)}>{years.map(([v, k]) => <option key={v} value={v}>{t(k)}</option>)}</select>
         <select aria-label={t('term')} value={term} onChange={(e) => select('term', e.target.value)}>{terms.map(([v, k]) => <option key={v} value={v}>{t(k)}</option>)}</select>
@@ -60,6 +81,7 @@ export default function SubjectsPage() {
           );
         })}
       </ul>
+      </>}
       {adding && <SubjectForm year={year} term={term} order={Math.max(0, ...subjects.data.map((s) => s.order)) + 1} onClose={() => setAdding(false)} />}
     </>
   );

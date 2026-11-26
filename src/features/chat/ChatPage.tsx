@@ -114,7 +114,7 @@ function RoomView({ roomId }: { roomId: string }) {
               <input type="file" accept="image/*" disabled={busy} onChange={async (e) => {
                 const input = e.currentTarget; const file = input.files?.[0];
                 if (!file) return;
-                setBusy(true); await run(async () => setImage(await upload(file, 10))); setBusy(false); input.value = '';
+                setBusy(true); await run(async () => setImage(await upload(file, undefined, 'image'))); setBusy(false); input.value = '';
               }} /></label>}
             <textarea rows={1} maxLength={2000} dir="auto" aria-label={t('writeMessage')} placeholder={t('writeMessage')} value={text}
               onChange={(e) => setText(e.target.value)}
