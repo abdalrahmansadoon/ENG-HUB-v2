@@ -15,6 +15,7 @@ import { toneOf } from '../../ui/tone';
 import { useMediaQuery } from '../../ui/useMediaQuery';
 import { KindIcon } from '../subjects/KindIcon';
 import { savedTerm, terms, years } from '../subjects/terms';
+import { taskPath } from '../tasks/actions';
 import { useTaskList } from '../tasks/useTaskList';
 import { useSubjects } from '../useSubjects';
 import ActivityChart from './ActivityChart';
@@ -56,8 +57,8 @@ export default function HomePage() {
 
   const assigned = (audience: string[]) => audience.includes('all') || audience.includes(user.uid);
   const open = ready.filter((x) => assigned(x.audience));
-  const todayList = open.filter((x) => { const b = bucketOf(x, mine(x.id), now); return b === 'late' || (x.dueDate === now && mine(x.id) !== 'declined'); });
-  const todayOnly = open.filter((x) => x.dueDate === now && mine(x.id) !== 'declined');
+  const todayOnly = open.filter((x) => x.dueDate === now && mine(x.id) !== 'declined' && !x.cancelled);
+  const todayList = [...open.filter((x) => bucketOf(x, mine(x.id), now) === 'late'), ...todayOnly];
   const upcoming = open.filter((x) => bucketOf(x, mine(x.id), now) === 'next').slice(0, 5);
   const stats = taskStats(ready, mine, user.uid, now);
   const activity = weekActivity(now,
@@ -65,7 +66,7 @@ export default function HomePage() {
     progress.data.map((p) => p.at));
 
   const updates = [
-    ...tasks.data.map((x) => ({ key: x.id, at: x.createdAt, to: `/tasks/${x.id}`, title: x.title, kind: t('updTask'), subject: x.subjectId, icon: <ListChecks size={18} aria-hidden /> })),
+    ...tasks.data.filter((x) => !x.personal).map((x) => ({ key: x.id, at: x.createdAt, to: taskPath(x), title: x.title, kind: t('updTask'), subject: x.subjectId, icon: <ListChecks size={18} aria-hidden /> })),
     ...items.data.map((i) => ({ key: i.id, at: i.createdAt, to: `/subjects/${i.subjectId}/items/${i.id}`, title: i.title, kind: t(i.category), subject: i.subjectId, icon: <KindIcon kind={itemKind(i.url)} size={18} /> })),
     ...quizzes.data.filter((q) => q.published).map((q) => ({ key: q.id, at: q.createdAt, to: `/quizzes/${q.id}`, title: q.title, kind: t('updQuiz'), subject: q.subjectId, icon: <ClipboardList size={18} aria-hidden /> })),
   ].sort((a, b) => b.at - a.at).slice(0, 5);

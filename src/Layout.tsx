@@ -5,7 +5,7 @@ import { useBackend, useSession } from './data/context';
 import QuickAdd from './features/QuickAdd';
 import { useResponses } from './features/tasks/responses';
 import { useTasks } from './features/tasks/useTasks';
-import { today } from './lib/dates';
+import { addDays, today } from './lib/dates';
 import { applyUpdate, notify, useUpdateReady } from './lib/pwa';
 import { Avatar, Status } from './ui/kit';
 import { usePrefs } from './ui/prefs';
@@ -22,7 +22,7 @@ function useTaskNotifications() {
     if (seen.current) {
       for (const task of tasks.data) {
         // الأقدم من فتح الصفحة ليست جديدة، حتى لو وصلت متأخرة من الخادم.
-        if (seen.current.has(task.id) || task.createdBy === user.uid || task.createdAt < since) continue;
+        if (seen.current.has(task.id) || task.createdBy === user.uid || task.createdAt < since || task.cancelled) continue;
         void notify(t('newTaskNotice'), { body: task.title, tag: task.id });
       }
     }
@@ -41,7 +41,10 @@ export default function Layout() {
   const updateReady = useUpdateReady();
   const { byTask } = useResponses();
   const main = useRef<HTMLElement>(null);
-  const badge = isAdmin ? 0 : tasks.data.filter((x) => x.dueDate >= today() && byTask[x.id] && !byTask[x.id].some((r) => r.id === user.uid)).length;
+  // شارة المهام: مهام الدفعة القريبة التي لم يرد عليها العضو.
+  const soon = addDays(today(), 7);
+  const badge = isAdmin ? 0 : tasks.data.filter((x) => !x.personal && !x.cancelled && x.dueDate >= today() && x.dueDate <= soon
+    && byTask[x.id] && !byTask[x.id].some((r) => r.id === user.uid)).length;
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
     addEventListener('online', update); addEventListener('offline', update);

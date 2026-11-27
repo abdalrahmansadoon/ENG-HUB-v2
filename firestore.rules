@@ -434,6 +434,11 @@ service cloud.firestore {
       function ownName(name) { return name == get(/databases/$(database)/documents/v2/main/profiles/$(request.auth.uid)).data.name; }
       function cloudinaryOrEmpty(url) { return url == '' || (url is string && url.matches('https://res[.]cloudinary[.]com/.*')); }
 
+      // مستند غير موجود؛ نجاح قراءته يخبر الموقع أن هذه القواعد هي المنشورة.
+      match /meta/{docId} {
+        allow read: if signedIn();
+      }
+
       match /profiles/{uid} {
         allow read: if signedIn();
         allow create, update: if isSelf(uid)
@@ -448,6 +453,24 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(['subjectId', 'at'])
           && text(request.resource.data.subjectId, 1, 100)
           && request.resource.data.at == request.time;
+      }
+
+      // المهام الشخصية: لصاحبها وحده، حتى المشرف لا يقرؤها.
+      match /users/{uid}/tasks/{taskId} {
+        function validTask() {
+          let d = request.resource.data;
+          return d.keys().hasOnly(['title', 'details', 'subjectId', 'dueDate', 'startDate', 'priority', 'criteria', 'links', 'itemId', 'quizId', 'seriesId', 'done', 'doneAt', 'createdAt'])
+            && text(d.title, 1, 140)
+            && text(d.details, 0, 2000)
+            && text(d.subjectId, 0, 100)
+            && d.dueDate is string && d.dueDate.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+            && d.get('priority', 'normal') in ['low', 'normal', 'high', 'urgent']
+            && d.get('links', []) is list && d.get('links', []).size() <= 8
+            && d.get('done', false) is bool;
+        }
+        allow read, delete: if isSelf(uid);
+        allow create: if isSelf(uid) && validTask() && request.resource.data.createdAt == request.time;
+        allow update: if isSelf(uid) && validTask() && request.resource.data.createdAt == resource.data.createdAt;
       }
 
       match /subjects/{id} {
@@ -467,19 +490,91 @@ service cloud.firestore {
         allow read: if v2Admin() || (signedIn() && forMe(resource.data.audience));
         allow write: if v2Admin();
 
+        function task() { return get(/databases/$(database)/documents/v2/main/tasks/$(taskId)).data; }
+
         match /responses/{uid} {
+          function changed(before) { return request.resource.data.diff(before).affectedKeys(); }
+
+          // ما يحق للعضو كتابته في رده. before هو الرد السابق أو فارغ.
+          function memberWrite(before) {
+            let next = request.resource.data;
+            let status = next.status;
+            let was = before.get('status', '');
+            let approved = was == 'done' && 'reviewedAt' in before;
+            let sameWork = !changed(before).hasAny(['version', 'submittedAt']);
+            return task().get('cancelled', false) != true
+              && ownName(next.name)
+              && next.updatedAt == request.time
+              && !changed(before).hasAny(['reviewedBy', 'reviewedAt'])
+              && (!changed(before).hasAny(['startedAt']) || !('startedAt' in next) || next.startedAt == request.time)
+              && (task().get('review', false) == true
+                // مهمة بمراجعة: لا إنجاز دون قبول المشرف، ولا تراجع بعد التسليم.
+                ? ((status == 'submitted' && !approved && was != 'review'
+                      && (before.get('version', 0) == 0 || task().get('noResubmit', false) != true)
+                      && next.version == before.get('version', 0) + 1
+                      && next.submittedAt == request.time
+                      && existsAfter(/databases/$(database)/documents/v2/main/tasks/$(taskId)/responses/$(uid)/submissions/$(string(next.version))))
+                    || (status in ['accepted', 'declined'] && sameWork && !approved && !(was in ['submitted', 'review'])))
+                : (status in ['accepted', 'declined', 'done'] && sameWork));
+          }
+
+          // قرار المشرف: لا يغير ما سلّمه العضو.
+          function reviewWrite(before) {
+            let next = request.resource.data;
+            return v2Admin()
+              && changed(before).hasOnly(['status', 'name', 'updatedAt', 'reviewedBy', 'reviewedAt'])
+              && next.status in ['review', 'done', 'rejected']
+              && text(next.name, 1, 60)
+              && next.updatedAt == request.time
+              && next.reviewedBy == request.auth.uid
+              && next.reviewedAt == request.time;
+          }
+
+          function validKeys() {
+            return request.resource.data.keys().hasOnly(['status', 'name', 'updatedAt', 'startedAt', 'version', 'submittedAt', 'reviewedBy', 'reviewedAt']);
+          }
+
           allow read: if v2Admin() || (signedIn() && taskForMe());
-          allow create, update: if isSelf(uid) && taskForMe()
-            && request.resource.data.keys().hasOnly(['status', 'name', 'updatedAt'])
-            && request.resource.data.status in ['accepted', 'declined', 'done']
-            && ownName(request.resource.data.name)
-            && request.resource.data.updatedAt == request.time;
-          allow delete: if isSelf(uid) || v2Admin();
+          allow create: if signedIn() && validKeys() && ((isSelf(uid) && taskForMe() && memberWrite({})) || reviewWrite({}));
+          allow update: if signedIn() && validKeys() && ((isSelf(uid) && taskForMe() && memberWrite(resource.data)) || reviewWrite(resource.data));
+          // سجل التسليم والمراجعة لا يحذفه العضو.
+          allow delete: if v2Admin() || (isSelf(uid) && !('version' in resource.data) && !('reviewedAt' in resource.data));
+
+          // نسخ التسليم: يضيفها صاحبها ولا يعدلها. المشرف يضيف نتيجة المراجعة فقط.
+          match /submissions/{n} {
+            function okUrl(urls, i) { return urls.size() <= i || (urls[i] is string && urls[i].matches('https://res[.]cloudinary[.]com/.*')); }
+            function validSubmission() {
+              let d = request.resource.data;
+              return d.keys().hasOnly(['text', 'urls', 'names', 'link', 'version', 'at'])
+                && text(d.text, 0, 5000)
+                && d.urls is list && d.urls.size() <= 6
+                && d.names is list && d.names.size() == d.urls.size()
+                && okUrl(d.urls, 0) && okUrl(d.urls, 1) && okUrl(d.urls, 2) && okUrl(d.urls, 3) && okUrl(d.urls, 4) && okUrl(d.urls, 5)
+                && d.link is string && d.link.size() <= 500 && (d.link == '' || d.link.matches('https?://.*'))
+                && (d.text.size() > 0 || d.urls.size() > 0 || d.link != '')
+                && d.version is int && string(d.version) == n
+                && d.at == request.time;
+            }
+
+            allow read: if isSelf(uid) || v2Admin();
+            // لا تُقبل نسخة إلا مع تحديث الرد في الدفعة نفسها.
+            allow create: if isSelf(uid) && taskForMe() && validSubmission()
+              && getAfter(/databases/$(database)/documents/v2/main/tasks/$(taskId)/responses/$(uid)).data.version == request.resource.data.version
+              && getAfter(/databases/$(database)/documents/v2/main/tasks/$(taskId)/responses/$(uid)).data.status == 'submitted'
+              && getAfter(/databases/$(database)/documents/v2/main/tasks/$(taskId)/responses/$(uid)).data.submittedAt == request.time;
+            allow update: if v2Admin()
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['verdict', 'reviewNote', 'reviewedBy', 'reviewedAt'])
+              && request.resource.data.verdict in ['review', 'done', 'rejected']
+              && text(request.resource.data.reviewNote, 0, 1000)
+              && request.resource.data.reviewedBy == request.auth.uid
+              && request.resource.data.reviewedAt == request.time;
+            allow delete: if v2Admin();
+          }
         }
 
         match /comments/{commentId} {
           allow read: if v2Admin() || (signedIn() && taskForMe());
-          allow create: if signedIn() && (v2Admin() || taskForMe())
+          allow create: if signedIn() && (v2Admin() || (taskForMe() && task().get('noComments', false) != true))
             && request.resource.data.keys().hasOnly(['uid', 'name', 'text', 'createdAt'])
             && request.resource.data.uid == request.auth.uid
             && ownName(request.resource.data.name)

@@ -4,7 +4,7 @@ import { NOW } from '../src/data/store';
 import { addDays } from '../src/lib/dates';
 import { kindOf } from '../src/lib/cloudinary';
 import { score } from '../src/lib/quiz';
-import { bucketOf } from '../src/lib/tasks';
+import { bucketOf, byUrgency, filterTasks, lateDays, MAX_OCCURRENCES, memberOptions, noFilters, occurrences, toCsv, viewStatus } from '../src/lib/tasks';
 import { itemKind, resolveMedia, safeUrl } from '../src/lib/video';
 
 describe('الروابط', () => {
@@ -107,5 +107,63 @@ describe('home page', () => {
   it('names days relative to today', () => {
     expect(relativeDay('2026-03-01', '2026-02-28', 'en')).toBe('tomorrow');
     expect(relativeDay('2026-02-25', '2026-02-28', 'en')).toBe('3 days ago');
+  });
+});
+
+describe('نظام المهام', () => {
+  const task = { id: '1', title: 'شيت النهايات', details: '', subjectId: 'calc', dueDate: '2026-03-10', audience: ['all'], createdBy: 'boss', createdAt: 0 };
+  const response = (extra = {}) => ({ id: 'u', name: 'u', status: 'accepted' as const, updatedAt: 0, ...extra });
+
+  it('تولد مواعيد التكرار', () => {
+    expect(occurrences('2026-03-01', 'none', '2026-03-30')).toEqual(['2026-03-01']);
+    expect(occurrences('2026-02-27', 'daily', '2026-03-02')).toEqual(['2026-02-27', '2026-02-28', '2026-03-01', '2026-03-02']);
+    expect(occurrences('2026-03-01', 'weekly', '2026-03-21')).toEqual(['2026-03-01', '2026-03-08', '2026-03-15']);
+    // الشهري يحتفظ بيوم 31 ويقصره في الشهور الأقصر.
+    expect(occurrences('2026-01-31', 'monthly', '2026-04-30')).toEqual(['2026-01-31', '2026-02-28', '2026-03-31', '2026-04-30']);
+    // 1 مارس 2026 أحد: الأحد (0) والثلاثاء (2).
+    expect(occurrences('2026-03-01', 'days', '2026-03-10', [0, 2])).toEqual(['2026-03-01', '2026-03-03', '2026-03-08', '2026-03-10']);
+    expect(occurrences('2026-03-05', 'daily', '2026-03-01')).toEqual([]);
+    expect(occurrences('2026-01-01', 'daily', '2027-01-01')).toHaveLength(MAX_OCCURRENCES);
+  });
+  it('تفرق بين المنتظر والمتأخر والملغى', () => {
+    expect(bucketOf(task, 'submitted', '2026-03-20')).toBe('waiting');
+    expect(bucketOf(task, 'rejected', '2026-03-20')).toBe('late');
+    expect(bucketOf({ ...task, cancelled: true }, undefined, '2026-03-20')).toBe('closed');
+    expect(viewStatus(task, 'accepted', '2026-03-09')).toBe('accepted');
+    expect(viewStatus(task, 'accepted', '2026-03-11')).toBe('late');
+    expect(viewStatus(task, undefined, '2026-03-09')).toBe('new');
+  });
+  it('تحسب أيام التأخير حتى التسليم', () => {
+    expect(lateDays(task, undefined, '2026-03-13')).toBe(3);
+    expect(lateDays(task, response({ submittedAt: new Date(2026, 2, 12, 23).getTime() }), '2026-04-01')).toBe(2);
+    expect(lateDays(task, response({ status: 'done', updatedAt: new Date(2026, 2, 9).getTime() }), '2026-04-01')).toBe(0);
+    expect(lateDays(task, response({ status: 'declined' }), '2026-04-01')).toBe(0);
+  });
+  it('تعطي العضو ما تسمح به القواعد فقط', () => {
+    const review = { ...task, review: true };
+    expect(memberOptions(task, undefined)).toEqual({ reply: true, done: true, submit: false });
+    expect(memberOptions(review, undefined)).toEqual({ reply: true, done: false, submit: true });
+    expect(memberOptions(review, response({ status: 'submitted', version: 1 }))).toEqual({ reply: false, done: false, submit: true });
+    expect(memberOptions({ ...review, noResubmit: true }, response({ status: 'rejected', version: 1 })).submit).toBe(false);
+    expect(memberOptions(review, response({ status: 'review', version: 1 })).submit).toBe(false);
+    expect(memberOptions(review, response({ status: 'done', version: 1, reviewedAt: 5 }))).toEqual({ reply: false, done: false, submit: false });
+    expect(memberOptions({ ...task, cancelled: true }, undefined).reply).toBe(false);
+  });
+  it('ترتب وتصفي', () => {
+    const list = [{ ...task, id: 'a' }, { ...task, id: 'b', priority: 'urgent' as const, title: 'تقرير', subjectId: '' }, { ...task, id: 'c', dueDate: '2026-03-01', personal: true, createdBy: 'u' }];
+    expect([...list].sort(byUrgency).map((x) => x.id)).toEqual(['c', 'b', 'a']);
+    const ids = (f: Partial<typeof noFilters>) => filterTasks(list, { ...noFilters, ...f }, (id) => (id === 'a' ? 'done' : undefined), 'u', '2026-03-05').map((x) => x.id);
+    expect(ids({})).toEqual(['a', 'b', 'c']);
+    expect(ids({ status: 'done' })).toEqual(['a']);
+    expect(ids({ status: 'late' })).toEqual(['c']);
+    expect(ids({ subject: 'general' })).toEqual(['b']);
+    expect(ids({ priority: 'normal' })).toEqual(['a', 'c']);
+    expect(ids({ scope: 'class' })).toEqual(['a', 'b']);
+    expect(ids({ scope: 'created' })).toEqual(['c']);
+    expect(ids({ text: 'تقرير' })).toEqual(['b']);
+  });
+  it('تصدّر CSV آمناً', () => {
+    expect(toCsv([['الاسم', 'العدد'], ['=HYPERLINK("x")', 2], ['a,"b"', 0]]))
+      .toBe('﻿"الاسم","العدد"\r\n"\'=HYPERLINK(""x"")","2"\r\n"a,""b""","0"');
   });
 });

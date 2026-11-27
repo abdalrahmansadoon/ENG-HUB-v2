@@ -14,13 +14,15 @@ function seed(): Record<string, Data> {
   for (const { id, ...s } of defaultSubjects) db[`subjects/${id}`] = s;
   db['admins/admin@demo.local'] = { active: true };
   for (const u of Object.values(demoUsers)) db[`profiles/${u.uid}`] = { name: u.name, photoURL: '' };
-  const task = (id: string, title: string, subjectId: string, offset: number, details = '') => {
-    db[`tasks/${id}`] = { title, details, subjectId, dueDate: addDays(today(), offset), audience: ['all'], createdBy: 'demo-admin', createdAt: now };
+  const task = (id: string, title: string, subjectId: string, offset: number, details = '', extra: Data = {}) => {
+    db[`tasks/${id}`] = { title, details, subjectId, dueDate: addDays(today(), offset), audience: ['all'], createdBy: 'demo-admin', createdAt: now, ...extra };
   };
-  task('t1', 'حل شيت 3: النهايات', 'calculus-1', 0, 'المسائل من 1 إلى 8.');
+  task('t1', 'حل شيت 3: النهايات', 'calculus-1', 0, 'المسائل من 1 إلى 8.', { priority: 'high' });
+  task('t4', 'تقرير معمل الفيزياء', 'physics-1', 1, 'اكتب النتائج والاستنتاج.', { review: true, criteria: 'جدول القراءات ورسم بياني واستنتاج.' });
   task('t2', 'رسم المساقط الثلاثة للوحة 2', 'technical-drawing', 0);
   task('t3', 'مراجعة محاضرة محصلة القوى', 'statics', 2);
-  db['tasks/t1/responses/demo-student'] = { status: 'accepted', name: demoUsers.student.name, updatedAt: now };
+  db['tasks/t1/responses/demo-student'] = { status: 'accepted', name: demoUsers.student.name, startedAt: now, updatedAt: now };
+  db['users/demo-student/tasks/p1'] = { title: 'تلخيص محاضرة المتجهات', details: '', subjectId: 'statics', dueDate: today(), priority: 'normal', createdAt: now };
   const item = (id: string, subjectId: string, category: string, title: string, url: string, group = '') => {
     db[`items/${id}`] = { subjectId, category, title, url, group, createdAt: now };
   };
@@ -38,7 +40,7 @@ function seed(): Record<string, Data> {
   return db;
 }
 
-const DB_KEY = 'enghub.demo.db.v1';
+const DB_KEY = 'enghub.demo.db.v2';
 const USER_KEY = 'enghub.demo.user';
 const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const write = (k: string, v: string | null) => {

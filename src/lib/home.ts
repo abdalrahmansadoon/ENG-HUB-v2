@@ -1,5 +1,6 @@
 import type { ResponseStatus, Task } from '../data/types';
 import { addDays, toKey } from './dates';
+import { bucketOf } from './tasks';
 
 export const homeSections = ['today', 'activity', 'progress', 'upcoming', 'updates', 'shortcuts'] as const;
 export type HomeSection = (typeof homeSections)[number];
@@ -32,10 +33,11 @@ export function taskStats(tasks: Task[], statusOf: (id: string) => ResponseStatu
   const stats = { total: 0, done: 0, pending: 0, overdue: 0 };
   for (const task of tasks) {
     const status = statusOf(task.id);
-    if (status === 'declined' || !(task.audience.includes('all') || task.audience.includes(uid))) continue;
+    if (status === 'declined' || task.cancelled || !(task.audience.includes('all') || task.audience.includes(uid))) continue;
     stats.total++;
+    const bucket = bucketOf(task, status, today);
     if (status === 'done') stats.done++;
-    else if (task.dueDate < today) stats.overdue++;
+    else if (bucket === 'late') stats.overdue++;
     else stats.pending++;
   }
   return stats;

@@ -2,6 +2,7 @@ import { lazy, useEffect, useRef, useState } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { SessionContext, useBackend, useDoc } from './data/context';
 import type { AuthUser } from './data/store';
+import { useRules } from './data/rules';
 import type { Profile } from './data/types';
 import AuthPage from './features/AuthPage';
 import HomePage from './features/home/HomePage';
@@ -39,6 +40,7 @@ function SignedIn({ user }: { user: AuthUser }) {
   const profile = useDoc<Profile>(`profiles/${user.uid}`);
   const admin = useDoc<{ id: string; active: boolean }>(user.email ? `admins/${user.email}` : null);
   const creating = useRef(false);
+  const rules = useRules();
   useEffect(() => {
     if (profile.loading || profile.error || profile.data || creating.current) return;
     creating.current = true;
@@ -59,7 +61,7 @@ function SignedIn({ user }: { user: AuthUser }) {
   }
   // دون اتصال لا يمكن تأكيد صلاحية المشرف: ندخل كعضو عادي حتى يعود الاتصال.
   if (!profile.data || (admin.loading && navigator.onLine)) return <Splash />;
-  const session = { user, name: profile.data.name, photoURL: profile.data.photoURL, isAdmin: user.emailVerified && admin.data?.active === true };
+  const session = { user, name: profile.data.name, photoURL: profile.data.photoURL, isAdmin: user.emailVerified && admin.data?.active === true, ...rules };
   return (
     <SessionContext.Provider value={session}>
       <HashRouter>
@@ -68,6 +70,7 @@ function SignedIn({ user }: { user: AuthUser }) {
             <Route index element={<HomePage />} />
             <Route path="tasks" element={<TasksPage />} />
             <Route path="tasks/:taskId" element={<TaskPage />} />
+            <Route path="tasks/p/:taskId" element={<TaskPage personal />} />
             <Route path="subjects" element={<SubjectsPage />} />
             <Route path="subjects/:subjectId" element={<SubjectPage />} />
             <Route path="subjects/:subjectId/items/:itemId" element={<ItemPage />} />

@@ -11,13 +11,14 @@ export function useTaskList() {
   const tasks = useTasks();
   const responses = useResponses();
   const subjects = useSubjects();
-  const mine = (id: string) => responses.byTask[id]?.find((r) => r.id === user.uid)?.status;
+  const response = (id: string) => responses.byTask[id]?.find((r) => r.id === user.uid);
+  const mine = (id: string) => response(id)?.status;
   // لا نصنف المهمة قبل معرفة ردودها، حتى لا تقفز بين الأقسام.
   const ready = tasks.data.filter((x) => responses.byTask[x.id]);
   const waiting = tasks.loading || ready.length < tasks.data.length;
   const rows = (list: Task[], extra: (x: Task) => { date?: boolean; dayTag?: string } = () => ({})) => (
     <ul className="card">
-      {list.map((x) => <TaskRow key={x.id} task={x} mine={mine(x.id)} subject={subjects.nameOf(x.subjectId)} tone={subjects.tone(x.subjectId)}
+      {list.map((x) => <TaskRow key={x.id} task={x} mine={response(x.id)} subject={subjects.nameOf(x.subjectId)} tone={subjects.tone(x.subjectId)}
         doneBy={responses.byTask[x.id].filter((r) => r.status === 'done').length} {...extra(x)} />)}
     </ul>
   );

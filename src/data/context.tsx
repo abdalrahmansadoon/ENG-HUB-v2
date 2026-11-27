@@ -5,7 +5,13 @@ export const BackendContext = createContext<Backend | null>(null);
 export const useBackend = () => useContext(BackendContext)!;
 export const useStore = () => useBackend().store;
 
-export interface Session { user: AuthUser; name: string; photoURL: string; isAdmin: boolean }
+export interface Session {
+  user: AuthUser; name: string; photoURL: string; isAdmin: boolean;
+  /** قواعد قاعدة البيانات المنشورة تدعم المزايا الجديدة */
+  rules2: boolean;
+  /** تأكد أن القواعد المنشورة قديمة */
+  rulesOld: boolean;
+}
 export const SessionContext = createContext<Session | null>(null);
 export const useSession = () => useContext(SessionContext)!;
 
