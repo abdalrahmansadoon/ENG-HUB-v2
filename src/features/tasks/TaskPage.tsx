@@ -1,13 +1,14 @@
-import { Pencil, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { Pencil, SendHorizontal, Trash2 } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useCollection, useDoc, useSession, useStore } from '../../data/context';
 import { NOW } from '../../data/store';
 import type { Comment, Profile, ResponseStatus, Task, TaskResponse } from '../../data/types';
 import { formatDay, formatShort } from '../../lib/dates';
 import { useFeedback } from '../../ui/feedback';
-import { BackLink, Empty, Form, PageHead, Status } from '../../ui/kit';
+import { Avatar, BackLink, Empty, Status } from '../../ui/kit';
 import { usePrefs } from '../../ui/prefs';
+import { memberTone } from '../../ui/tone';
 import { useSubjects } from '../useSubjects';
 import TaskForm from './TaskForm';
 
@@ -52,29 +53,41 @@ function TaskView({ task }: { task: Task }) {
     if (ok) navigate('/');
   };
 
-  const send = async () => {
+  const [sending, setSending] = useState(false);
+  const send = async (e: FormEvent) => {
+    e.preventDefault();
     const value = text.trim();
-    if (!value) return;
+    if (!value || sending) return;
+    setSending(true);
     if (await run(() => store.add(`${base}/comments`, { uid: user.uid, name, text: value, createdAt: NOW }))) setText('');
+    setSending(false);
   };
 
   const members = profiles.data.filter((p) => task.audience.includes('all') || task.audience.includes(p.id));
 
+  const photo = (uid: string) => profiles.data.find((p) => p.id === uid)?.photoURL;
+
   return (
     <>
-      <BackLink to="/" />
-      <PageHead title={task.title}>
+      <div className="topbar">
+        <BackLink to="/" />
         {isAdmin && <div className="tools">
-          <button className="icon-btn" onClick={() => setEditing(true)} aria-label={t('edit')}><Pencil size={18} /></button>
-          <button className="icon-btn danger" onClick={remove} aria-label={t('delete')}><Trash2 size={18} /></button>
+          <button className="icon-btn" onClick={() => setEditing(true)} aria-label={t('edit')}><Pencil size={18} aria-hidden /></button>
+          <button className="icon-btn danger" onClick={remove} aria-label={t('delete')}><Trash2 size={18} aria-hidden /></button>
         </div>}
-      </PageHead>
-      <p className="meta"><span>{subjects.nameOf(task.subjectId)}</span><span>{t('dueDate')}: {formatDay(task.dueDate, lang)}</span></p>
-      {task.details && <p className="sheet pad pre">{task.details}</p>}
+      </div>
+      <header className="group">
+        <h1>{task.title}</h1>
+        <p className="meta">
+          <span className={`subject-dot tone-${subjects.tone(task.subjectId)}`}>{subjects.nameOf(task.subjectId)}</span>
+          <span className="tag day-tag">{t('dueDate')}: {formatDay(task.dueDate, lang)}</span>
+        </p>
+      </header>
+      {task.details && <p className="card pad pre" dir="auto">{task.details}</p>}
       {assigned && (
-        <div className="choices" role="group">
+        <div className="segmented respond" role="group" aria-label={t('myReply')}>
           {([['accepted', 'accept'], ['done', 'markDone'], ['declined', 'decline']] as const).map(([status, label]) => (
-            <button key={status} className={`btn choice ${status}`} aria-pressed={mine === status} disabled={responses.loading}
+            <button key={status} className={status} aria-pressed={mine === status} disabled={responses.loading}
               onClick={() => respond(status)}>{t(mine === status ? status : label)}</button>
           ))}
         </div>
@@ -82,29 +95,37 @@ function TaskView({ task }: { task: Task }) {
       <section className="group">
         <h2>{t('replies')}</h2>
         <Status loading={responses.loading || profiles.loading} error={responses.error ?? profiles.error} />
-        <ul className="sheet list">
-          {!responses.loading && members.map((m) => {
+        {!responses.loading && members.length > 0 && <ul className="card">
+          {members.map((m) => {
             const status = responses.data.find((r) => r.id === m.id)?.status;
-            return <li key={m.id} className="row plain"><span className="row-main">{m.name}</span><span className={`tag ${status ?? ''}`}>{t(status ?? 'waiting')}</span></li>;
+            return (
+              <li key={m.id} className="row">
+                <Avatar name={m.name} url={m.photoURL} size="small" tone={memberTone(m.id)} />
+                <span className="row-main"><bdi>{m.name}</bdi></span>
+                <span className={`tag ${status ?? ''}`}>{t(status ?? 'waiting')}</span>
+              </li>
+            );
           })}
-        </ul>
+        </ul>}
       </section>
       <section className="group">
         <h2>{t('comments')}</h2>
         <Status loading={comments.loading} error={comments.error} />
         {!comments.loading && !comments.data.length && <p className="muted">{t('noComments')}</p>}
-        {comments.data.length > 0 && <ul className="sheet list">
+        {comments.data.length > 0 && <ul className="thread">
           {comments.data.map((c) => (
-            <li key={c.id} className="row plain">
-              <div className="row-main"><span className="meta"><strong>{c.name}</strong><span>{formatShort(c.createdAt, lang)}</span></span><p className="pre" dir="auto">{c.text}</p></div>
-              {(isAdmin || c.uid === user.uid) && <button className="icon-btn" aria-label={t('delete')}
-                onClick={async () => { if (await confirm('confirmComment')) await run(() => store.remove(`${base}/comments/${c.id}`)); }}><Trash2 size={16} /></button>}
+            <li key={c.id} className="comment">
+              <Avatar name={c.name} url={photo(c.uid)} size="small" tone={memberTone(c.uid)} />
+              <div className="comment-body"><span className="meta"><strong>{c.name}</strong><span>{formatShort(c.createdAt, lang)}</span></span><p className="pre" dir="auto">{c.text}</p></div>
+              {(isAdmin || c.uid === user.uid) && <button className="icon-btn plain" aria-label={t('delete')}
+                onClick={async () => { if (await confirm('confirmComment')) await run(() => store.remove(`${base}/comments/${c.id}`)); }}><Trash2 size={16} aria-hidden /></button>}
             </li>
           ))}
         </ul>}
-        <Form onSubmit={send} submitLabel={t('send')} disabled={!text.trim()}>
-          <textarea rows={2} maxLength={1000} aria-label={t('writeComment')} placeholder={t('writeComment')} value={text} onChange={(e) => setText(e.target.value)} />
-        </Form>
+        <form className="reply-box" onSubmit={send}>
+          <textarea rows={1} maxLength={1000} aria-label={t('writeComment')} placeholder={t('writeComment')} value={text} onChange={(e) => setText(e.target.value)} />
+          <button className="btn primary send" aria-label={t('send')} disabled={!text.trim() || sending}><SendHorizontal size={20} className="flip" aria-hidden /></button>
+        </form>
       </section>
       {editing && <TaskForm task={task} onClose={() => setEditing(false)} />}
     </>

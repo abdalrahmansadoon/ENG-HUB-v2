@@ -1,5 +1,5 @@
 import { ImagePlus, Lock, LockOpen, Reply, SendHorizontal, Trash2, UserX, VolumeX, X } from 'lucide-react';
-import { useLayoutEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import { Navigate, NavLink, useParams } from 'react-router-dom';
 import { useBackend, useCollection, useDoc, useSession, useStore } from '../../data/context';
 import { NOW } from '../../data/store';
@@ -7,21 +7,25 @@ import type { Message, Mute, Room } from '../../data/types';
 import { upload, uploadsReady } from '../../lib/cloudinary';
 import { formatShort, formatTime, toKey } from '../../lib/dates';
 import { useFeedback } from '../../ui/feedback';
-import { Dialog, Empty, Status } from '../../ui/kit';
+import { Avatar, Dialog, Empty, Status } from '../../ui/kit';
 import { usePrefs } from '../../ui/prefs';
+import { memberTone } from '../../ui/tone';
 import { useSubjects } from '../useSubjects';
 
 export default function ChatPage() {
   const { roomId } = useParams();
   const subjects = useSubjects();
   const { t } = usePrefs();
+  const tabs = useRef<HTMLElement>(null);
+  // نُظهر الغرفة الحالية إذا كانت خارج الجزء المرئي من الشريط.
+  useEffect(() => { tabs.current?.querySelector('[aria-current]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [roomId, subjects.loading]);
   if (!roomId) return <Navigate to="/chat/general" replace />;
   const rooms = [{ id: 'general', name: t('roomGeneral') }, ...subjects.data.map((s) => ({ id: s.id, name: subjects.label(s) }))];
   const known = rooms.some((r) => r.id === roomId);
   return (
     <div className="chat">
       <h1 className="sr">{t('chat')}</h1>
-      <nav className="segments rooms" aria-label={t('chat')}>{rooms.map((r) => <NavLink key={r.id} to={`/chat/${r.id}`}>{r.name}</NavLink>)}</nav>
+      <nav className="chips" ref={tabs} aria-label={t('chat')}>{rooms.map((r) => <NavLink key={r.id} to={`/chat/${r.id}`}>{r.name}</NavLink>)}</nav>
       {known ? <RoomView key={roomId} roomId={roomId} /> : subjects.loading ? <Status loading /> : <Empty title={t('notFound')} />}
     </div>
   );
@@ -72,9 +76,9 @@ function RoomView({ roomId }: { roomId: string }) {
   return (
     <>
       {isAdmin && <div className="tools chat-tools">
-        <button className="btn" onClick={() => run(() => store.set(`rooms/${roomId}`, { locked: !locked }))}>
+        <button className="btn small" onClick={() => run(() => store.set(`rooms/${roomId}`, { locked: !locked }))}>
           {locked ? <LockOpen size={16} aria-hidden /> : <Lock size={16} aria-hidden />}{t(locked ? 'unlock' : 'lock')}</button>
-        <button className="btn" onClick={() => setShowMuted(true)}><VolumeX size={16} aria-hidden />{t('mutedList')}</button>
+        <button className="btn small" onClick={() => setShowMuted(true)}><VolumeX size={16} aria-hidden />{t('mutedList')}</button>
       </div>}
       <div className="messages" ref={box} aria-live="polite"
         onScroll={(e) => { const el = e.currentTarget; stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; }}>
@@ -89,26 +93,29 @@ function RoomView({ roomId }: { roomId: string }) {
           return (
             <div key={m.id} className="msg-wrap">
               {header && <p className="day">{header}</p>}
-              <article className={own ? 'msg own' : 'msg'}>
-                {!own && <strong>{m.name}</strong>}
-                {m.replyTo && <blockquote dir="auto">{m.replyTo}</blockquote>}
-                {m.imageUrl && <a href={m.imageUrl} target="_blank" rel="noopener noreferrer"><img src={m.imageUrl} alt={t('image')} loading="lazy" /></a>}
-                {m.text && <p className="pre" dir="auto">{m.text}</p>}
-                <footer>
-                  <time>{formatTime(m.createdAt, lang)}</time>
-                  {!blocked && <button aria-label={t('reply')} onClick={() => setReply(`${m.name}: ${m.text || t('image')}`.slice(0, 200))}><Reply size={15} /></button>}
-                  {(own || isAdmin) && <button aria-label={t('delete')} onClick={async () => { if (await confirm('confirmMessage')) await run(() => store.remove(`${path}/${m.id}`)); }}><Trash2 size={15} /></button>}
-                  {isAdmin && !own && <button aria-label={`${t('mute')}: ${m.name}`} onClick={async () => { if (await confirm('confirmMute')) await run(() => store.set(`mutes/${m.uid}`, { name: m.name }), 'saved'); }}><UserX size={15} /></button>}
-                </footer>
-              </article>
+              <div className={own ? 'msg-line own' : 'msg-line'}>
+                {!own && <Avatar name={m.name} size="small" tone={memberTone(m.uid)} />}
+                <article className={own ? 'msg own' : `msg tone-${memberTone(m.uid)}`}>
+                  {!own && <strong>{m.name}</strong>}
+                  {m.replyTo && <blockquote dir="auto">{m.replyTo}</blockquote>}
+                  {m.imageUrl && <a href={m.imageUrl} target="_blank" rel="noopener noreferrer"><img src={m.imageUrl} alt={t('image')} loading="lazy" /></a>}
+                  {m.text && <p className="pre" dir="auto">{m.text}</p>}
+                  <footer>
+                    <time>{formatTime(m.createdAt, lang)}</time>
+                    {!blocked && <button aria-label={t('reply')} onClick={() => setReply(`${m.name}: ${m.text || t('image')}`.slice(0, 200))}><Reply size={15} /></button>}
+                    {(own || isAdmin) && <button aria-label={t('delete')} onClick={async () => { if (await confirm('confirmMessage')) await run(() => store.remove(`${path}/${m.id}`)); }}><Trash2 size={15} /></button>}
+                    {isAdmin && !own && <button aria-label={`${t('mute')}: ${m.name}`} onClick={async () => { if (await confirm('confirmMute')) await run(() => store.set(`mutes/${m.uid}`, { name: m.name }), 'saved'); }}><UserX size={15} /></button>}
+                  </footer>
+                </article>
+              </div>
             </div>
           );
         })}
       </div>
       {blocked ? <p className="composer-blocked">{t(mine.data ? 'muted' : 'locked')}</p> : (
         <form className="composer" onSubmit={send}>
-          {replyTo && <p className="pending"><span dir="auto">{replyTo}</span><button type="button" className="icon-btn" aria-label={t('cancel')} onClick={() => setReply('')}><X size={16} /></button></p>}
-          {image && <p className="pending"><img src={image} alt={t('image')} /><button type="button" className="icon-btn" aria-label={t('cancel')} onClick={() => setImage('')}><X size={16} /></button></p>}
+          {replyTo && <p className="pending"><span dir="auto">{replyTo}</span><button type="button" className="icon-btn plain" aria-label={t('cancel')} onClick={() => setReply('')}><X size={16} /></button></p>}
+          {image && <p className="pending"><img src={image} alt={t('image')} /><button type="button" className="icon-btn plain" aria-label={t('cancel')} onClick={() => setImage('')}><X size={16} /></button></p>}
           <div className="composer-row">
             {!demo && uploadsReady && <label className="icon-btn file-btn"><ImagePlus size={20} aria-hidden /><span className="sr">{t('attach')}</span>
               <input type="file" accept="image/*" disabled={busy} onChange={async (e) => {
@@ -137,7 +144,10 @@ function MutedDialog({ onClose }: { onClose(): void }) {
     <Dialog title={t('mutedList')} onClose={onClose}>
       <Status loading={muted.loading} error={muted.error} />
       {!muted.loading && !muted.data.length && <p className="muted">{t('noMuted')}</p>}
-      <ul className="list">{muted.data.map((m) => <li key={m.id} className="row plain"><span className="row-main">{m.name}</span><button className="btn" onClick={() => run(() => store.remove(`mutes/${m.id}`), 'saved')}>{t('unmute')}</button></li>)}</ul>
+      {muted.data.length > 0 && <ul className="card">{muted.data.map((m) => (
+        <li key={m.id} className="row"><Avatar name={m.name} size="small" tone={memberTone(m.id)} /><span className="row-main"><bdi>{m.name}</bdi></span>
+          <button className="btn small" onClick={() => run(() => store.remove(`mutes/${m.id}`), 'saved')}>{t('unmute')}</button></li>
+      ))}</ul>}
     </Dialog>
   );
 }

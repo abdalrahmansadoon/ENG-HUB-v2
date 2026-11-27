@@ -4,10 +4,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useDoc, useSession, useStore } from '../../data/context';
 import { NOW } from '../../data/store';
 import type { Item, Progress } from '../../data/types';
-import { resolveMedia } from '../../lib/video';
+import { itemKind, resolveMedia } from '../../lib/video';
 import { useFeedback } from '../../ui/feedback';
-import { BackLink, Empty, PageHead, Status } from '../../ui/kit';
+import { BackLink, Empty, Status } from '../../ui/kit';
 import { usePrefs } from '../../ui/prefs';
+import { useSubjects } from '../useSubjects';
 import ItemForm from './ItemForm';
 import VideoPlayer from './VideoPlayer';
 
@@ -18,6 +19,7 @@ export default function ItemPage() {
   const { user, isAdmin } = useSession();
   const { t } = usePrefs();
   const { run, confirm } = useFeedback();
+  const subjects = useSubjects();
   const item = useDoc<Item>(`items/${itemId}`);
   const path = `users/${user.uid}/progress/${itemId}`;
   const progress = useDoc<Progress>(path);
@@ -26,27 +28,35 @@ export default function ItemPage() {
   if (item.loading || !item.data) return <><BackLink to={back} />{item.loading ? <Status loading /> : <Empty title={t('notFound')} />}</>;
   const data = item.data;
   const media = resolveMedia(data.url);
+  const playable = media && media.type !== 'link';
+  const studied = !!progress.data;
 
   return (
     <>
-      <BackLink to={back} />
-      <PageHead title={data.title}>
+      <div className="topbar">
+        <BackLink to={back} />
         {isAdmin && <div className="tools">
-          <button className="icon-btn" aria-label={t('edit')} onClick={() => setEditing(true)}><Pencil size={18} /></button>
+          <button className="icon-btn" aria-label={t('edit')} onClick={() => setEditing(true)}><Pencil size={18} aria-hidden /></button>
           <button className="icon-btn danger" aria-label={t('delete')} onClick={async () => {
             if (await confirm('confirmItem') && await run(() => store.remove(`items/${itemId}`), 'deleted')) navigate(back);
-          }}><Trash2 size={18} /></button>
+          }}><Trash2 size={18} aria-hidden /></button>
         </div>}
-      </PageHead>
-      {data.group && <p className="meta"><span>{data.group}</span></p>}
-      {media && media.type !== 'link' && <VideoPlayer key={media.src} media={media} title={data.title} />}
-      <div className="actions">
-        <button className="btn choice done" aria-pressed={!!progress.data} disabled={progress.loading}
-          onClick={() => run(() => (progress.data ? store.remove(path) : store.set(path, { subjectId: data.subjectId, at: NOW })))}>
-          <Check size={18} aria-hidden />{t(progress.data ? 'studied' : 'markStudied')}
-        </button>
-        {media && <a className="btn" href={media.type === 'link' ? media.src : data.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={18} aria-hidden />{t('openLink')}</a>}
       </div>
+      <header className="group">
+        <h1>{data.title}</h1>
+        <p className="meta">
+          <span className={`subject-dot tone-${subjects.tone(data.subjectId)}`}>{subjects.nameOf(data.subjectId)}</span>
+          <span>{t(`kind_${itemKind(data.url)}`)}</span>
+          {data.group && <span>{data.group}</span>}
+        </p>
+      </header>
+      {playable && <VideoPlayer key={media.src} media={media} title={data.title} />}
+      {media && !playable && <a className="btn primary block" href={media.src} target="_blank" rel="noopener noreferrer"><ExternalLink size={18} aria-hidden />{t('openLink')}</a>}
+      <button className={`btn block ${studied ? 'done' : playable ? 'primary' : 'tonal'}`} aria-pressed={studied} disabled={progress.loading}
+        onClick={() => run(() => (studied ? store.remove(path) : store.set(path, { subjectId: data.subjectId, at: NOW })))}>
+        <Check size={18} aria-hidden />{t(studied ? 'studied' : 'markStudied')}
+      </button>
+      {playable && <a className="btn block" href={data.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={18} aria-hidden />{t('openLink')}</a>}
       {editing && <ItemForm item={data} subjectId={data.subjectId} category={data.category} onClose={() => setEditing(false)} />}
     </>
   );

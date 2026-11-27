@@ -58,7 +58,7 @@ export default function Layout() {
         <span className="brand" dir="ltr"><img src="./icon.svg" alt="" width="34" height="34" />ENG HUB</span>
         {links.map(({ to, label, Icon, badge }) => (
           <NavLink key={to} to={to} end={to === '/'}>
-            <Icon size={21} aria-hidden /><span>{label}</span>
+            <span className="nav-icon"><Icon size={22} aria-hidden /></span><span>{label}</span>
             {!!badge && <bdi className="badge">{badge}</bdi>}
           </NavLink>
         ))}

@@ -1,15 +1,17 @@
-import { Check, FileText, Pencil, PlayCircle, Plus, Trash2 } from 'lucide-react';
+import { Check, ClipboardList, Pencil, Play, Plus, Search, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useCollection, useDoc, useSession, useStore } from '../../data/context';
 import type { Item, ItemCategory, Progress, Subject } from '../../data/types';
-import { resolveMedia } from '../../lib/video';
+import { itemKind } from '../../lib/video';
 import { useFeedback } from '../../ui/feedback';
 import { SubjectIcon } from '../../ui/icons';
-import { BackLink, Dimension, Empty, PageHead, Status } from '../../ui/kit';
+import { BackLink, Empty, Meter, Status } from '../../ui/kit';
 import { usePrefs } from '../../ui/prefs';
+import { toneOf } from '../../ui/tone';
 import { useSubjects } from '../useSubjects';
 import ItemForm from './ItemForm';
+import { KindIcon } from './KindIcon';
 import SubjectForm from './SubjectForm';
 import { categories } from './terms';
 
@@ -35,10 +37,17 @@ function SubjectView({ subject }: { subject: Subject }) {
   const [params, setParams] = useSearchParams();
   const tab: ItemCategory = categories.find((c) => c === params.get('tab')) ?? 'lectures';
   const [form, setForm] = useState<'item' | 'subject' | null>(null);
+  const [search, setSearch] = useState<string | null>(null);
   const studied = new Set(progress.data.map((p) => p.id));
-  const shown = items.data.filter((i) => i.category === tab).sort((a, b) => a.createdAt - b.createdAt);
+  const needle = search?.trim().toLocaleLowerCase() ?? '';
+  const shown = items.data
+    .filter((i) => (needle ? `${i.title} ${i.group}`.toLocaleLowerCase().includes(needle) : i.category === tab))
+    .sort((a, b) => a.createdAt - b.createdAt);
   const groups = [...new Set(shown.map((i) => i.group))].sort();
+  // «التالية» هي أول محتوى لم يُذاكر بترتيب العرض.
+  const next = needle || progress.loading ? undefined : groups.flatMap((g) => shown.filter((i) => i.group === g)).find((i) => !studied.has(i.id));
   const back = `/subjects?year=${subject.year}&term=${subject.term}`;
+  const itemPath = (id: string) => `/subjects/${subject.id}/items/${id}`;
 
   const remove = async () => {
     if (!(await confirm('confirmSubject'))) return;
@@ -51,44 +60,64 @@ function SubjectView({ subject }: { subject: Subject }) {
 
   return (
     <>
-      <BackLink to={back} />
-      <PageHead title={label(subject)}>
-        {isAdmin && <div className="tools">
-          <button className="btn primary" onClick={() => setForm('item')}><Plus size={18} aria-hidden />{t('addItem')}</button>
-          <button className="icon-btn" aria-label={t('editSubject')} onClick={() => setForm('subject')}><Pencil size={18} /></button>
-          <button className="icon-btn danger" aria-label={t('delete')} onClick={remove} disabled={items.loading}><Trash2 size={18} /></button>
-        </div>}
-      </PageHead>
-      <div className="subject-progress"><span className="drawer-icon"><SubjectIcon name={subject.icon} /></span>
-        <Dimension value={items.data.filter((i) => studied.has(i.id)).length} total={items.data.length} label={t('progress')} /></div>
-      <nav className="segments" aria-label={t('section')}>
-        {categories.map((c) => (
-          <button key={c} aria-current={tab === c ? 'page' : undefined} onClick={() => setParams({ tab: c }, { replace: true })}>
-            {t(c)} <bdi>{items.data.filter((i) => i.category === c).length}</bdi>
-          </button>
-        ))}
-      </nav>
+      <div className="topbar">
+        <BackLink to={back} />
+        <div className="tools">
+          <button className="icon-btn" aria-label={t('searchSubject')} aria-pressed={search !== null} onClick={() => setSearch(search === null ? '' : null)}><Search size={18} aria-hidden /></button>
+          {isAdmin && <>
+            <button className="icon-btn" aria-label={t('editSubject')} onClick={() => setForm('subject')}><Pencil size={18} aria-hidden /></button>
+            <button className="icon-btn danger" aria-label={t('delete')} onClick={remove} disabled={items.loading}><Trash2 size={18} aria-hidden /></button>
+          </>}
+        </div>
+      </div>
+      <header className={`group tone-${toneOf(subject.order)}`}>
+        <div className="subject-title"><span className="tile large"><SubjectIcon name={subject.icon} size={28} /></span><h1>{label(subject)}</h1></div>
+        {items.data.length > 0 && <Meter value={items.data.filter((i) => studied.has(i.id)).length} total={items.data.length} label={t('progress')} />}
+      </header>
+      {search === null ? (
+        <nav className="segmented" aria-label={t('section')}>
+          {categories.map((c) => (
+            <button key={c} aria-current={tab === c ? 'page' : undefined} onClick={() => setParams({ tab: c }, { replace: true })}>
+              {t(c === 'exams' ? 'examsShort' : c)}
+            </button>
+          ))}
+        </nav>
+      ) : (
+        <label className="search">
+          <Search size={20} aria-hidden />
+          <input type="search" autoFocus aria-label={t('searchSubject')} placeholder={t('searchSubject')} value={search} onChange={(e) => setSearch(e.target.value)} />
+        </label>
+      )}
       <Status loading={items.loading} error={items.error} />
-      {!items.loading && !items.error && !shown.length && <Empty title={t('noItems')} />}
+      {!items.loading && !items.error && !shown.length && <Empty title={t(needle ? 'noMatches' : 'noItems')} />}
       {groups.map((g) => (
         <section key={g} className="group">
           {g && <h2>{g}</h2>}
-          <ul className="sheet list">
+          <ul className="card">
             {shown.filter((i) => i.group === g).map((i) => {
-              const media = resolveMedia(i.url);
-              const Icon = media && media.type !== 'link' ? PlayCircle : FileText;
+              const kind = itemKind(i.url);
               return (
-                <li key={i.id} className="row">
-                  <span className="row-icon"><Icon size={20} aria-hidden /></span>
-                  <Link to={`/subjects/${subject.id}/items/${i.id}`} className="row-main"><strong>{i.title}</strong></Link>
-                  {studied.has(i.id) && <span className="tag done"><Check size={14} aria-hidden />{t('studied')}</span>}
+                <li key={i.id}>
+                  <Link to={itemPath(i.id)} className="row link">
+                    <span className={i === next ? 'tile solid' : 'tile'}><KindIcon kind={kind} /></span>
+                    <span className="row-main">
+                      <strong>{i.title}</strong>
+                      <span className="meta">
+                        {i === next ? <span className="item-sub next">{t('next')}</span> : <span>{t(`kind_${kind}`)}</span>}
+                        {needle && <span>{t(i.category)}</span>}
+                      </span>
+                    </span>
+                    {studied.has(i.id) && <span className="studied-mark" role="img" aria-label={t('studied')}><Check size={22} strokeWidth={2.5} aria-hidden /></span>}
+                  </Link>
                 </li>
               );
             })}
           </ul>
         </section>
       ))}
-      <p><Link to={`/quizzes?subject=${subject.id}`} className="text-btn">{t('quizzes')}: {label(subject)}</Link></p>
+      {isAdmin && <button className="btn dashed block" onClick={() => setForm('item')}><Plus size={18} aria-hidden />{t('addItem')}</button>}
+      <Link to={`/quizzes?subject=${subject.id}`} className="btn block"><ClipboardList size={18} aria-hidden />{t('subjectQuizzes')}</Link>
+      {next && <Link to={itemPath(next.id)} className="btn primary block"><Play size={18} aria-hidden />{t('continueWith')}: {next.title}</Link>}
       {form === 'item' && <ItemForm subjectId={subject.id} category={tab} onClose={() => setForm(null)} />}
       {form === 'subject' && <SubjectForm subject={subject} year={subject.year} term={subject.term} order={subject.order} onClose={() => setForm(null)} />}
     </>

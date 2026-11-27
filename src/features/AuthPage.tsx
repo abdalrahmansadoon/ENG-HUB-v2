@@ -20,7 +20,7 @@ export default function AuthPage() {
         <h1 dir="ltr">ENG HUB</h1>
         <p>{t('tagline')}</p>
       </div>
-      <section className="sheet auth-card">
+      <section className="card auth-card">
         {demo ? (
           <>
             <h2>{t('demoTitle')}</h2>
@@ -37,7 +37,7 @@ export default function AuthPage() {
               <Field label={t('email')}><input type="email" required dir="ltr" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
               <Field label={t('password')}><input type="password" required minLength={6} dir="ltr" autoComplete={creating ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
             </Form>
-            <button className="btn" onClick={() => run(() => auth.google())}>{t('google')}</button>
+            <button className="btn block" onClick={() => run(() => auth.google())}>{t('google')}</button>
             <div className="auth-links">
               <button className="text-btn" onClick={() => setCreating(!creating)}>{t(creating ? 'haveAccount' : 'noAccount')}</button>
               {!creating && <button className="text-btn" onClick={async () => {

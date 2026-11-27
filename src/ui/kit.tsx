@@ -17,7 +17,7 @@ export function Dialog({ title, onClose, children }: { title: string; onClose():
     <dialog ref={ref} aria-labelledby={id} onCancel={(e) => { e.preventDefault(); onClose(); }}>
       <header className="dialog-head">
         <h2 id={id}>{title}</h2>
-        <button type="button" className="icon-btn" onClick={onClose} aria-label={t('close')}><X size={20} /></button>
+        <button type="button" className="icon-btn plain" onClick={onClose} aria-label={t('close')}><X size={20} /></button>
       </header>
       {children}
     </dialog>
@@ -45,14 +45,23 @@ export function Field({ label, children, hint }: { label: string; children: Reac
   return <label className="field"><span>{label}{hint && <small> ({hint})</small>}</span>{children}</label>;
 }
 
-/** خط الأبعاد: مقياس التقدم المستعار من الرسم الهندسي. */
-export function Dimension({ value, total, label }: { value: number; total: number; label: string }) {
+export function Meter({ value, total, label }: { value: number; total: number; label: string }) {
+  const { t } = usePrefs();
   const ratio = total ? Math.min(value / total, 1) : 0;
   return (
-    <div className="dim" role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={total} aria-valuenow={value}>
-      <div className="dim-line"><i style={{ width: `${ratio * 100}%` }} /></div>
-      <bdi className="dim-value">{value} / {total}</bdi>
+    <div className="meter" role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={total} aria-valuenow={value}>
+      <div className="meter-track"><i style={{ width: `${ratio * 100}%` }} /></div>
+      <span className="meter-value"><bdi>{value}</bdi> {t('of')} <bdi>{total}</bdi></span>
     </div>
+  );
+}
+
+/** صورة العضو، أو أول حرف من اسمه. */
+export function Avatar({ name, url, size, tone }: { name: string; url?: string; size?: 'small' | 'large'; tone?: number }) {
+  return (
+    <span className={`avatar ${size ?? ''} ${tone ? `tone-${tone}` : ''}`} aria-hidden="true">
+      {url ? <img src={url} alt="" referrerPolicy="no-referrer" /> : [...name.trim()][0] ?? '?'}
+    </span>
   );
 }
 
@@ -70,7 +79,7 @@ export function Status({ loading, error }: { loading?: boolean; error?: Error | 
 export function BackLink({ to }: { to: string }) {
   const { t, lang } = usePrefs();
   const Icon = lang === 'ar' ? ArrowRight : ArrowLeft;
-  return <Link to={to} className="back"><Icon size={18} aria-hidden />{t('back')}</Link>;
+  return <Link to={to} className="back" aria-label={t('back')}><Icon size={20} aria-hidden /></Link>;
 }
 
 export function PageHead({ title, children }: { title: string; children?: ReactNode }) {

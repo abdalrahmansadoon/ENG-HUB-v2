@@ -6,7 +6,7 @@ import { usePrefs } from '../../ui/prefs';
 export default function VideoPlayer({ media, title }: { media: Exclude<Media, { type: 'link' }>; title: string }) {
   const { t } = usePrefs();
   const [failed, setFailed] = useState(false);
-  if (failed) return <p className="sheet pad">{t('videoError')}</p>;
+  if (failed) return <p className="card pad">{t('videoError')}</p>;
   return (
     <div className="player">
       {media.type === 'embed'

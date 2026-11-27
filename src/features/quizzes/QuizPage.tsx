@@ -7,8 +7,9 @@ import type { AnswerKey, Attempt, Quiz } from '../../data/types';
 import { score } from '../../lib/quiz';
 import { safeUrl } from '../../lib/video';
 import { useFeedback } from '../../ui/feedback';
-import { BackLink, Dimension, Empty, Form, PageHead, Status } from '../../ui/kit';
+import { Avatar, BackLink, Empty, Form, Meter, Status } from '../../ui/kit';
 import { usePrefs } from '../../ui/prefs';
+import { memberTone } from '../../ui/tone';
 import { useSubjects } from '../useSubjects';
 import QuizForm from './QuizForm';
 
@@ -43,17 +44,24 @@ function QuizView({ quiz }: { quiz: Quiz }) {
   };
   return (
     <>
-      <BackLink to="/quizzes" />
-      <PageHead title={quiz.title}>
+      <div className="topbar">
+        <BackLink to="/quizzes" />
         {isAdmin && <div className="tools">
-          <button className="btn" onClick={() => run(() => store.update(base, { published: !quiz.published }), 'saved')}>{t(quiz.published ? 'unpublish' : 'publish')}</button>
-          <button className="icon-btn" aria-label={t('editQuiz')} onClick={edit} disabled={attempts.loading || !key.data}><Pencil size={18} /></button>
-          <button className="icon-btn danger" aria-label={t('delete')} onClick={remove}><Trash2 size={18} /></button>
+          <button className={`btn small ${quiz.published ? '' : 'primary'}`} onClick={() => run(() => store.update(base, { published: !quiz.published }), 'saved')}>{t(quiz.published ? 'unpublish' : 'publish')}</button>
+          <button className="icon-btn" aria-label={t('editQuiz')} onClick={edit} disabled={attempts.loading || !key.data}><Pencil size={18} aria-hidden /></button>
+          <button className="icon-btn danger" aria-label={t('delete')} onClick={remove}><Trash2 size={18} aria-hidden /></button>
         </div>}
-      </PageHead>
-      <p className="meta"><span>{subjects.nameOf(quiz.subjectId)}</span></p>
+      </div>
+      <header className="group">
+        <h1>{quiz.title}</h1>
+        <p className="meta">
+          <span className={`subject-dot tone-${subjects.tone(quiz.subjectId)}`}>{subjects.nameOf(quiz.subjectId)}</span>
+          <span>{quiz.kind === 'pdf' ? t('pdf') : <>{t('questions')}: <bdi>{quiz.questions.length}</bdi></>}</span>
+          {isAdmin && <span className={`tag ${quiz.published ? 'done' : ''}`}>{t(quiz.published ? 'published' : 'draft')}</span>}
+        </p>
+      </header>
       {quiz.kind === 'pdf'
-        ? <a className="btn primary" href={safeUrl(quiz.pdfUrl) || undefined} target="_blank" rel="noopener noreferrer"><ExternalLink size={18} aria-hidden />{t('openPdf')}</a>
+        ? <a className="btn primary block" href={safeUrl(quiz.pdfUrl) || undefined} target="_blank" rel="noopener noreferrer"><ExternalLink size={18} aria-hidden />{t('openPdf')}</a>
         : isAdmin ? <AdminView quiz={quiz} /> : <Take key={quiz.questions.length} quiz={quiz} />}
       {editing && key.data && <QuizForm quiz={quiz} subjectId={quiz.subjectId} answers={key.data.answers} onClose={() => setEditing(false)} />}
     </>
@@ -89,7 +97,7 @@ function Take({ quiz }: { quiz: Quiz }) {
     <Form onSubmit={submit} submitLabel={t('submit')}>
       <p className="muted">{t('oneAttempt')}</p>
       {quiz.questions.map((q, n) => (
-        <fieldset key={n} className="sheet question">
+        <fieldset key={n} className="card question">
           <legend className="sr">{t('question')} {n + 1}</legend>
           <p className="q-text"><bdi className="q-num">{n + 1}</bdi><span dir="auto">{q.text}</span></p>
           {q.imageUrl && <img src={q.imageUrl} alt={`${t('question')} ${n + 1}`} />}
@@ -106,9 +114,9 @@ function Review({ quiz, chosen, correct }: { quiz: Quiz; chosen: number[]; corre
   const { t } = usePrefs();
   return (
     <>
-      <section className="sheet pad"><h2>{t('yourScore')}</h2><Dimension value={score(chosen, correct)} total={correct.length} label={t('yourScore')} /></section>
+      <section className="card pad score"><h2>{t('yourScore')}</h2><Meter value={score(chosen, correct)} total={correct.length} label={t('yourScore')} /></section>
       {quiz.questions.map((q, n) => (
-        <div key={n} className="sheet question">
+        <div key={n} className="card question">
           <p className="q-text"><bdi className="q-num">{n + 1}</bdi><span dir="auto">{q.text}</span></p>
           {q.imageUrl && <img src={q.imageUrl} alt={`${t('question')} ${n + 1}`} />}
           {q.options.map((o, i) => {
@@ -134,9 +142,12 @@ function AdminView({ quiz }: { quiz: Quiz }) {
       <h2>{t('results')}</h2>
       <Status loading={attempts.loading} error={attempts.error} />
       {!attempts.loading && !attempts.data.length && <p className="muted">{t('noResults')}</p>}
-      {attempts.data.length > 0 && <ul className="sheet list">{attempts.data.map((a) => (
-        <li key={a.id} className="row plain"><span className="row-main">{a.name}</span><bdi className="dim-value">{score(a.answers, answers)} / {answers.length}</bdi>
-          <button className="text-btn" onClick={async () => { if (await confirm('confirmRetry')) await run(() => store.remove(`quizzes/${quiz.id}/attempts/${a.id}`), 'saved'); }}>{t('allowRetry')}</button></li>
+      {attempts.data.length > 0 && <ul className="card">{attempts.data.map((a) => (
+        <li key={a.id} className="row">
+          <Avatar name={a.name} size="small" tone={memberTone(a.id)} />
+          <span className="row-main"><bdi>{a.name}</bdi><span className="meta"><span><bdi>{score(a.answers, answers)}</bdi> {t('of')} <bdi>{answers.length}</bdi></span></span></span>
+          <button className="text-btn" onClick={async () => { if (await confirm('confirmRetry')) await run(() => store.remove(`quizzes/${quiz.id}/attempts/${a.id}`), 'saved'); }}>{t('allowRetry')}</button>
+        </li>
       ))}</ul>}
     </section>
   );

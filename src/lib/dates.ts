@@ -11,3 +11,8 @@ export const formatTime = (ms: number, lang: string) =>
   new Intl.DateTimeFormat(locale(lang), { hour: 'numeric', minute: '2-digit' }).format(ms);
 export const formatShort = (ms: number, lang: string) =>
   new Intl.DateTimeFormat(locale(lang), { day: 'numeric', month: 'short' }).format(ms);
+/** اسم اليوم وحده، مثل "الخميس" أو "Thu". */
+export const weekday = (key: string, lang: string, width: 'long' | 'short' = 'long') =>
+  new Intl.DateTimeFormat(locale(lang), { weekday: width }).format(parse(key));
+export const formatDate = (key: string, lang: string) =>
+  new Intl.DateTimeFormat(locale(lang), { day: 'numeric', month: 'short' }).format(parse(key));

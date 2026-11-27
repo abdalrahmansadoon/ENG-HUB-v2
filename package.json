@@ -11,7 +11,6 @@
     "test:rules": "vitest run tests/rules.test.ts"
   },
   "dependencies": {
-    "@fontsource/alexandria": "5.3.0",
     "@fontsource/ibm-plex-sans-arabic": "5.3.0",
     "firebase": "13.4.0",
     "lucide-react": "1.81.0",

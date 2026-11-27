@@ -5,7 +5,7 @@ import { addDays } from '../src/lib/dates';
 import { kindOf } from '../src/lib/cloudinary';
 import { score } from '../src/lib/quiz';
 import { bucketOf } from '../src/lib/tasks';
-import { resolveMedia, safeUrl } from '../src/lib/video';
+import { itemKind, resolveMedia, safeUrl } from '../src/lib/video';
 
 describe('الروابط', () => {
   it('ترفض الروابط غير الآمنة', () => {
@@ -62,5 +62,14 @@ describe('الرفع', () => {
     expect(kindOf('a.b.jpeg')).toBe('image');
     expect(kindOf('clip.mov')).toBe('video');
     expect(kindOf('run.exe')).toBeNull();
+  });
+});
+
+describe('نوع المحتوى', () => {
+  it('يميز الفيديو والملف ورابط درايف', () => {
+    expect(itemKind('https://youtu.be/WUvTyaaNkzM')).toBe('video');
+    expect(itemKind('https://res.cloudinary.com/x/raw/upload/v1/eng-hub/a.pdf')).toBe('pdf');
+    expect(itemKind('https://drive.google.com/file/d/abc_123/view')).toBe('drive');
+    expect(itemKind('https://example.com/page')).toBe('link');
   });
 });

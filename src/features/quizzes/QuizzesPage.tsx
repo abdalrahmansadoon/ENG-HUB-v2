@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react';
+import { ClipboardList, FileText, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useCollection, useSession } from '../../data/context';
@@ -19,7 +19,7 @@ export default function QuizzesPage() {
   const shown = quizzes.data.filter((q) => !filter || q.subjectId === filter).sort((a, b) => b.createdAt - a.createdAt);
   return (
     <>
-      <PageHead title={t('quizzes')}>{isAdmin && <button className="btn primary" onClick={() => setAdding(true)}><Plus size={18} aria-hidden />{t('newQuiz')}</button>}</PageHead>
+      <PageHead title={t('quizzes')}>{isAdmin && <button className="btn tonal small" onClick={() => setAdding(true)}><Plus size={18} aria-hidden />{t('newQuiz')}</button>}</PageHead>
       <div className="filters">
         <select aria-label={t('subject')} value={filter} onChange={(e) => setParams(e.target.value ? { subject: e.target.value } : {}, { replace: true })}>
           <option value="">{t('allSubjects')}</option>
@@ -28,13 +28,16 @@ export default function QuizzesPage() {
       </div>
       <Status loading={quizzes.loading} error={quizzes.error} />
       {!quizzes.loading && !quizzes.error && !shown.length && <Empty title={t('noQuizzes')} />}
-      {shown.length > 0 && <ul className="sheet list">
+      {shown.length > 0 && <ul className="card">
         {shown.map((q) => (
-          <li key={q.id} className="row plain">
-            <Link to={`/quizzes/${q.id}`} className="row-main"><strong>{q.title}</strong>
-              <span className="meta"><span>{subjects.nameOf(q.subjectId)}</span><span>{q.kind === 'pdf' ? t('pdf') : <>{t('questions')}: <bdi>{q.questions.length}</bdi></>}</span></span>
+          <li key={q.id}>
+            <Link to={`/quizzes/${q.id}`} className="row link">
+              <span className={`tile tone-${subjects.tone(q.subjectId)}`}>{q.kind === 'pdf' ? <FileText size={22} aria-hidden /> : <ClipboardList size={22} aria-hidden />}</span>
+              <span className="row-main"><strong>{q.title}</strong>
+                <span className="meta"><span>{subjects.nameOf(q.subjectId)}</span><span>{q.kind === 'pdf' ? t('pdf') : <>{t('questions')}: <bdi>{q.questions.length}</bdi></>}</span></span>
+              </span>
+              {isAdmin && <span className={`tag ${q.published ? 'done' : ''}`}>{t(q.published ? 'published' : 'draft')}</span>}
             </Link>
-            {isAdmin && <span className={`tag ${q.published ? 'done' : ''}`}>{t(q.published ? 'published' : 'draft')}</span>}
           </li>
         ))}
       </ul>}

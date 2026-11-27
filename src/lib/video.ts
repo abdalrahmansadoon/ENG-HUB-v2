@@ -30,3 +30,14 @@ export function resolveMedia(raw: string): Media | null {
   if (/\.(mp4|webm|ogv|mov|m4v)$/i.test(u.pathname)) return { type: 'file', src: href };
   return { type: 'link', src: href };
 }
+
+export type ItemKind = 'video' | 'pdf' | 'drive' | 'link';
+/** نوع المحتوى كما يظهر في القائمة، من الرابط وحده. */
+export function itemKind(raw: string): ItemKind {
+  const media = resolveMedia(raw);
+  if (!media) return 'link';
+  const { hostname, pathname } = new URL(media.src);
+  if (/\.pdf$/i.test(pathname)) return 'pdf';
+  if (hostname === 'drive.google.com') return 'drive';
+  return media.type === 'link' ? 'link' : 'video';
+}
