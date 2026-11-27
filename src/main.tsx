@@ -2,6 +2,7 @@ import '@fontsource/ibm-plex-sans-arabic/400.css';
 import '@fontsource/ibm-plex-sans-arabic/500.css';
 import '@fontsource/ibm-plex-sans-arabic/600.css';
 import '@fontsource/ibm-plex-sans-arabic/700.css';
+import '@fontsource/reem-kufi/700.css';
 import { Component, StrictMode, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
@@ -9,7 +10,13 @@ import { BackendContext } from './data/context';
 import type { Backend } from './data/store';
 import { firebaseConfig } from './lib/config';
 import { translate } from './lib/i18n';
-import './styles/app.css';
+import { registerServiceWorker } from './lib/pwa';
+import './styles/tokens.css';
+import './styles/base.css';
+import './styles/shell.css';
+import './styles/pages.css';
+import './styles/home.css';
+import './styles/motion.css';
 import { FeedbackProvider } from './ui/feedback';
 import { PrefsProvider } from './ui/prefs';
 
@@ -20,9 +27,21 @@ class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   static getDerivedStateFromError() { return { failed: true }; }
   render() {
     if (!this.state.failed) return this.props.children;
-    return <div className="empty"><p>{translate(lang(), 'errGeneric')}</p><button className="btn" onClick={() => location.reload()}>{translate(lang(), 'retry')}</button></div>;
+    return <div className="fallback"><p>{translate(lang(), 'errGeneric')}</p><button className="btn" onClick={() => location.reload()}>{translate(lang(), 'retry')}</button></div>;
   }
 }
+
+// بعد نشر نسخة جديدة قد تختفي ملفات النسخة المفتوحة: نعيد التحميل مرة واحدة.
+addEventListener('vite:preloadError', (event) => {
+  try {
+    const last = Number(sessionStorage.getItem('enghub.reload') ?? 0);
+    if (Date.now() - last < 20_000) return;
+    sessionStorage.setItem('enghub.reload', String(Date.now()));
+  } catch { return; }
+  event.preventDefault();
+  location.reload();
+});
+if (import.meta.env.PROD) registerServiceWorker();
 
 const root = createRoot(document.getElementById('root')!);
 

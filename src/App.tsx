@@ -1,29 +1,32 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, useEffect, useRef, useState } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { SessionContext, useBackend, useDoc } from './data/context';
 import type { AuthUser } from './data/store';
 import type { Profile } from './data/types';
 import AuthPage from './features/AuthPage';
-import ProfilePage from './features/ProfilePage';
-import ChatPage from './features/chat/ChatPage';
-import QuizPage from './features/quizzes/QuizPage';
-import QuizzesPage from './features/quizzes/QuizzesPage';
-import ItemPage from './features/subjects/ItemPage';
-import SubjectPage from './features/subjects/SubjectPage';
-import SubjectsPage from './features/subjects/SubjectsPage';
-import TaskPage from './features/tasks/TaskPage';
-import TodayPage from './features/tasks/TodayPage';
+import HomePage from './features/home/HomePage';
 import { ResponsesProvider } from './features/tasks/responses';
 import Layout from './Layout';
 import { useFeedback } from './ui/feedback';
-import { Status } from './ui/kit';
+import { Splash, Status } from './ui/kit';
 import { usePrefs } from './ui/prefs';
+
+// الرئيسية تُحمّل مع التطبيق، وبقية الصفحات عند فتحها.
+const ChatPage = lazy(() => import('./features/chat/ChatPage'));
+const ProfilePage = lazy(() => import('./features/ProfilePage'));
+const QuizPage = lazy(() => import('./features/quizzes/QuizPage'));
+const QuizzesPage = lazy(() => import('./features/quizzes/QuizzesPage'));
+const ItemPage = lazy(() => import('./features/subjects/ItemPage'));
+const SubjectPage = lazy(() => import('./features/subjects/SubjectPage'));
+const SubjectsPage = lazy(() => import('./features/subjects/SubjectsPage'));
+const TaskPage = lazy(() => import('./features/tasks/TaskPage'));
+const TasksPage = lazy(() => import('./features/tasks/TasksPage'));
 
 export default function App() {
   const { auth } = useBackend();
   const [user, setUser] = useState<AuthUser | null | undefined>(undefined);
   useEffect(() => auth.watch(setUser), [auth]);
-  if (user === undefined) return <Status loading />;
+  if (user === undefined) return <Splash />;
   if (!user) return <AuthPage />;
   return <SignedIn key={user.uid} user={user} />;
 }
@@ -47,7 +50,7 @@ function SignedIn({ user }: { user: AuthUser }) {
   if (profile.error || failed) {
     const refused = (profile.error as { code?: string } | null)?.code === 'permission-denied';
     return (
-      <div className="auth">
+      <div className="fallback">
         {refused ? <p className="banner bad">{t('errRules')}</p> : <Status error={profile.error ?? new Error('profile')} />}
         <button className="btn" onClick={() => location.reload()}>{t('retry')}</button>
         <button className="text-btn" onClick={() => auth.signOut()}>{t('signOut')}</button>
@@ -55,14 +58,15 @@ function SignedIn({ user }: { user: AuthUser }) {
     );
   }
   // دون اتصال لا يمكن تأكيد صلاحية المشرف: ندخل كعضو عادي حتى يعود الاتصال.
-  if (!profile.data || (admin.loading && navigator.onLine)) return <Status loading />;
+  if (!profile.data || (admin.loading && navigator.onLine)) return <Splash />;
   const session = { user, name: profile.data.name, photoURL: profile.data.photoURL, isAdmin: user.emailVerified && admin.data?.active === true };
   return (
     <SessionContext.Provider value={session}>
       <HashRouter>
         <Routes>
           <Route element={<ResponsesProvider><Layout /></ResponsesProvider>}>
-            <Route index element={<TodayPage />} />
+            <Route index element={<HomePage />} />
+            <Route path="tasks" element={<TasksPage />} />
             <Route path="tasks/:taskId" element={<TaskPage />} />
             <Route path="subjects" element={<SubjectsPage />} />
             <Route path="subjects/:subjectId" element={<SubjectPage />} />

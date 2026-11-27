@@ -1,5 +1,5 @@
 const dict = {
-  today: ['اليوم', 'Today'], subjects: ['المواد', 'Subjects'], chat: ['الشات', 'Chat'], quizzes: ['الاختبارات', 'Quizzes'], profile: ['حسابي', 'Profile'],
+  home: ['الرئيسية', 'Home'], tasks: ['المهام', 'Tasks'], subjects: ['المواد', 'Subjects'], chat: ['الشات', 'Chat'], quizzes: ['الاختبارات', 'Quizzes'], profile: ['حسابي', 'Profile'],
   loading: ['جارٍ التحميل', 'Loading'], save: ['حفظ', 'Save'], cancel: ['إلغاء', 'Cancel'], delete: ['حذف', 'Delete'], edit: ['تعديل', 'Edit'],
   add: ['إضافة', 'Add'], close: ['إغلاق', 'Close'], back: ['رجوع', 'Back'], confirm: ['تأكيد', 'Confirm'], saved: ['تم الحفظ', 'Saved'],
   deleted: ['تم الحذف', 'Deleted'], optional: ['اختياري', 'Optional'], notFound: ['العنصر غير موجود', 'This item does not exist'],
@@ -81,6 +81,25 @@ const dict = {
   notificationsBlocked: ['المتصفح يمنع الإشعارات. غيّر ذلك من إعداداته.', 'Your browser blocks notifications. Change this in its settings.'],
   notificationsNone: ['هذا المتصفح لا يدعم الإشعارات.', 'This browser does not support notifications.'],
   admin: ['مشرف', 'Admin'], verifyNote: ['أكّد بريدك، ثم سجّل الخروج والدخول من جديد.', 'Verify your email, then sign out and back in.'], sendVerify: ['إرسال رسالة التأكيد', 'Send verification email'], sent: ['تم الإرسال', 'Sent'],
+  mainNav: ['التنقل الرئيسي', 'Main navigation'], skip: ['تخطي إلى المحتوى', 'Skip to content'], quickAdd: ['إضافة سريعة', 'Quick add'],
+  darkMode: ['الوضع الداكن', 'Dark mode'], lightMode: ['الوضع الفاتح', 'Light mode'], member: ['طالب', 'Student'],
+  statTotal: ['كل المهام', 'All tasks'], statPending: ['قيد الانتظار', 'Pending'], statLectures: ['محاضرات ذاكرتها', 'Lectures studied'],
+  statsNote: ['أرقام المهام تشمل آخر 30 يوماً وما بعدها.', 'Task numbers cover the last 30 days onwards.'],
+  noTodayTasks: ['لا مهام مطلوبة اليوم', 'Nothing due today'], seeAll: ['عرض الكل', 'See all'],
+  deadlines: ['المواعيد القادمة', 'Upcoming deadlines'], noDeadlines: ['لا مواعيد قادمة', 'No upcoming deadlines'],
+  subjectProgress: ['تقدمك في المواد', 'Subject progress'], noProgress: ['يظهر تقدمك هنا بعد إضافة محتوى للمواد.', 'Progress appears once subjects have content.'],
+  activity: ['نشاطك في 7 أيام', 'Your last 7 days'], actDone: ['مهام أنجزتها', 'Tasks done'], actStudied: ['محتوى ذاكرته', 'Content studied'],
+  noActivity: ['علّم مهمة أو محاضرة كمنتهية ليظهر نشاطك هنا.', 'Finish a task or lecture to see your activity here.'],
+  asTable: ['عرض كجدول', 'Show as table'], day: ['اليوم', 'Day'],
+  updates: ['آخر الإضافات', 'Recently added'], noUpdates: ['لا جديد بعد', 'Nothing new yet'], updTask: ['مهمة', 'Task'], updQuiz: ['اختبار', 'Quiz'],
+  shortcuts: ['وصول سريع', 'Shortcuts'], customize: ['تخصيص الصفحة', 'Customize page'],
+  customizeHint: ['اختر ما يظهر ورتّبه. يُحفظ على هذا الجهاز.', 'Choose and order the sections. Saved on this device.'],
+  moveUp: ['تحريك لأعلى', 'Move up'], moveDown: ['تحريك لأسفل', 'Move down'], resetLayout: ['استعادة الترتيب الأصلي', 'Reset layout'],
+  allHidden: ['كل الأقسام مخفية.', 'All sections are hidden.'], more: ['المزيد', 'More'],
+  app: ['التطبيق', 'App'], install: ['تثبيت على الجهاز', 'Install on this device'], installed: ['التطبيق مثبّت على هذا الجهاز.', 'The app is installed on this device.'],
+  installIos: ['للتثبيت: من زر المشاركة اختر «إضافة إلى الشاشة الرئيسية».', 'To install: tap Share, then Add to Home Screen.'],
+  installMenu: ['يمكنك تثبيت الموقع من قائمة المتصفح إن كان يدعم ذلك.', 'You can install the site from the browser menu if it supports it.'],
+  updateReady: ['نسخة جديدة من الموقع جاهزة.', 'A new version is ready.'], updateNow: ['تحديث الآن', 'Update now'],
 } as const;
 
 export type Key = keyof typeof dict;

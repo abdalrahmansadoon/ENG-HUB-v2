@@ -17,7 +17,7 @@ export default function TaskPage() {
   const task = useDoc<Task>(`tasks/${taskId}`);
   const { t } = usePrefs();
   if (task.loading || !task.data) {
-    return <><BackLink to="/" />{task.loading ? <Status loading /> : <Empty title={t('notFound')} />}</>;
+    return <><BackLink to="/tasks" />{task.loading ? <Status loading /> : <Empty title={t('notFound')} />}</>;
   }
   return <TaskView key={taskId} task={task.data} />;
 }
@@ -50,7 +50,7 @@ function TaskView({ task }: { task: Task }) {
       }
       await store.remove(base);
     }, 'deleted');
-    if (ok) navigate('/');
+    if (ok) navigate('/tasks');
   };
 
   const [sending, setSending] = useState(false);
@@ -70,12 +70,14 @@ function TaskView({ task }: { task: Task }) {
   return (
     <>
       <div className="topbar">
-        <BackLink to="/" />
+        <BackLink to="/tasks" />
         {isAdmin && <div className="tools">
           <button className="icon-btn" onClick={() => setEditing(true)} aria-label={t('edit')}><Pencil size={18} aria-hidden /></button>
           <button className="icon-btn danger" onClick={remove} aria-label={t('delete')}><Trash2 size={18} aria-hidden /></button>
         </div>}
       </div>
+      <div className="task-page">
+      <div className="task-head">
       <header className="group">
         <h1>{task.title}</h1>
         <p className="meta">
@@ -84,6 +86,8 @@ function TaskView({ task }: { task: Task }) {
         </p>
       </header>
       {task.details && <p className="card pad pre" dir="auto">{task.details}</p>}
+      </div>
+      <div className="task-side">
       {assigned && (
         <div className="segmented respond" role="group" aria-label={t('myReply')}>
           {([['accepted', 'accept'], ['done', 'markDone'], ['declined', 'decline']] as const).map(([status, label]) => (
@@ -108,6 +112,8 @@ function TaskView({ task }: { task: Task }) {
           })}
         </ul>}
       </section>
+      </div>
+      <div className="task-talk">
       <section className="group">
         <h2>{t('comments')}</h2>
         <Status loading={comments.loading} error={comments.error} />
@@ -127,6 +133,8 @@ function TaskView({ task }: { task: Task }) {
           <button className="btn primary send" aria-label={t('send')} disabled={!text.trim() || sending}><SendHorizontal size={20} className="flip" aria-hidden /></button>
         </form>
       </section>
+      </div>
+      </div>
       {editing && <TaskForm task={task} onClose={() => setEditing(false)} />}
     </>
   );

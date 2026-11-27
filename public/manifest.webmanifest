@@ -1,28 +1,24 @@
 {
   "name": "ENG HUB",
   "short_name": "ENG HUB",
+  "description": "مهامك وموادك واختبارات دفعتك في مكان واحد",
   "lang": "ar",
   "dir": "rtl",
+  "id": "./",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#f5f6f8",
-  "theme_color": "#3445c4",
+  "background_color": "#eef2f0",
+  "theme_color": "#0f3d33",
   "icons": [
-    {
-      "src": "./icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "./icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "./icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml"
-    }
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "./icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "المهام", "url": "./#/tasks" },
+    { "name": "المواد", "url": "./#/subjects" },
+    { "name": "الشات", "url": "./#/chat" }
   ]
 }

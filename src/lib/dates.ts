@@ -16,3 +16,7 @@ export const weekday = (key: string, lang: string, width: 'long' | 'short' = 'lo
   new Intl.DateTimeFormat(locale(lang), { weekday: width }).format(parse(key));
 export const formatDate = (key: string, lang: string) =>
   new Intl.DateTimeFormat(locale(lang), { day: 'numeric', month: 'short' }).format(parse(key));
+const dayNumber = (key: string) => { const [y, m, d] = key.split('-').map(Number); return Date.UTC(y, m - 1, d) / 86_400_000; };
+/** "غداً" أو "خلال 3 أيام" نسبةً إلى تاريخ مرجعي. */
+export const relativeDay = (key: string, from: string, lang: string) =>
+  new Intl.RelativeTimeFormat(locale(lang), { numeric: 'auto' }).format(dayNumber(key) - dayNumber(from), 'day');

@@ -72,8 +72,14 @@ export function Empty({ title, children }: { title: string; children?: ReactNode
 export function Status({ loading, error }: { loading?: boolean; error?: Error | null }) {
   const { t } = usePrefs();
   if (error) return <Empty title={t('errLoad')}><button className="btn" onClick={() => location.reload()}>{t('retry')}</button></Empty>;
-  if (loading) return <div className="loading" role="status">{t('loading')}</div>;
+  if (loading) return <div className="loading" role="status"><span className="sr">{t('loading')}</span><i /><i /><i /></div>;
   return null;
+}
+
+/** شاشة الانتظار قبل ظهور هيكل التطبيق. */
+export function Splash() {
+  const { t } = usePrefs();
+  return <div className="splash" role="status"><img src="./icon.svg" alt="" width="72" height="72" /><span className="sr">{t('loading')}</span></div>;
 }
 
 export function BackLink({ to }: { to: string }) {

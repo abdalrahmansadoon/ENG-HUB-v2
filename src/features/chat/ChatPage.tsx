@@ -20,13 +20,16 @@ export default function ChatPage() {
   // نُظهر الغرفة الحالية إذا كانت خارج الجزء المرئي من الشريط.
   useEffect(() => { tabs.current?.querySelector('[aria-current]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [roomId, subjects.loading]);
   if (!roomId) return <Navigate to="/chat/general" replace />;
-  const rooms = [{ id: 'general', name: t('roomGeneral') }, ...subjects.data.map((s) => ({ id: s.id, name: subjects.label(s) }))];
+  const rooms = [{ id: 'general', name: t('roomGeneral'), tone: undefined as number | undefined },
+    ...subjects.data.map((s) => ({ id: s.id, name: subjects.label(s), tone: subjects.tone(s.id) as number | undefined }))];
   const known = rooms.some((r) => r.id === roomId);
   return (
     <div className="chat">
       <h1 className="sr">{t('chat')}</h1>
-      <nav className="chips" ref={tabs} aria-label={t('chat')}>{rooms.map((r) => <NavLink key={r.id} to={`/chat/${r.id}`}>{r.name}</NavLink>)}</nav>
-      {known ? <RoomView key={roomId} roomId={roomId} /> : subjects.loading ? <Status loading /> : <Empty title={t('notFound')} />}
+      <nav className="chips" ref={tabs} aria-label={t('chat')}>{rooms.map((r) => <NavLink key={r.id} to={`/chat/${r.id}`} className={r.tone ? `tone-${r.tone}` : ''}>{r.name}</NavLink>)}</nav>
+      <div className="room">
+        {known ? <RoomView key={roomId} roomId={roomId} /> : subjects.loading ? <Status loading /> : <Empty title={t('notFound')} />}
+      </div>
     </div>
   );
 }

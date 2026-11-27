@@ -80,14 +80,20 @@ export default function SubjectsPage() {
           {shown.length > 0 && <ul className="subjects">
             {shown.map((s) => {
               const own = items.data.filter((i) => i.subjectId === s.id);
+              const done = own.filter((i) => studied.has(i.id)).length;
               return (
                 <li key={s.id}>
                   <Link to={`/subjects/${s.id}`} className={`card subject-card tone-${toneOf(s.order)}`}>
-                    <span className="tile"><SubjectIcon name={s.icon} size={24} /></span>
-                    <strong>{subjects.label(s)}</strong>
-                    {own.length
-                      ? <Meter value={own.filter((i) => studied.has(i.id)).length} total={own.length} label={`${t('progress')}: ${subjects.label(s)}`} />
-                      : <span className="note">{t('noItems')}</span>}
+                    <span className="subject-art sheet">
+                      <SubjectIcon name={s.icon} size={36} />
+                      {own.length > 0 && <bdi className="percent" aria-hidden="true" dir="ltr">{Math.round((done / own.length) * 100)}%</bdi>}
+                    </span>
+                    <span className="subject-body">
+                      <strong>{subjects.label(s)}</strong>
+                      {own.length
+                        ? <Meter value={done} total={own.length} label={`${t('progress')}: ${subjects.label(s)}`} />
+                        : <span className="note">{t('noItems')}</span>}
+                    </span>
                   </Link>
                 </li>
               );

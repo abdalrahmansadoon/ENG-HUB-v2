@@ -73,3 +73,39 @@ describe('نوع المحتوى', () => {
     expect(itemKind('https://example.com/page')).toBe('link');
   });
 });
+
+import { defaultLayout, homeSections, moveSection, normalizeLayout, taskStats, weekActivity } from '../src/lib/home';
+import { relativeDay } from '../src/lib/dates';
+
+describe('home page', () => {
+  it('repairs any saved layout', () => {
+    expect(normalizeLayout(null)).toEqual(defaultLayout());
+    const fixed = normalizeLayout({ order: ['updates', 'bogus', 'updates'], hidden: ['activity', 7] });
+    expect(fixed.order).toHaveLength(homeSections.length);
+    expect(fixed.order[0]).toBe('updates');
+    expect(fixed.hidden).toEqual(['activity']);
+  });
+  it('moves a section and ignores moves past the ends', () => {
+    const start = defaultLayout();
+    expect(moveSection(start, 'activity', -1).order.slice(0, 2)).toEqual(['activity', 'today']);
+    expect(moveSection(start, 'today', -1)).toBe(start);
+  });
+  it('counts only my tasks that I did not decline', () => {
+    const task = (id: string, dueDate: string, audience = ['all']) => ({ id, title: id, details: '', subjectId: '', dueDate, audience, createdBy: 'a', createdAt: 0 });
+    const status = { b: 'done', d: 'declined' } as const;
+    const stats = taskStats([task('a', '2026-01-01'), task('b', '2026-01-01'), task('c', '2026-03-01'), task('d', '2026-03-01'), task('e', '2026-03-01', ['other'])],
+      (id) => status[id as 'b'], 'me', '2026-02-01');
+    expect(stats).toEqual({ total: 3, done: 1, pending: 1, overdue: 1 });
+  });
+  it('buckets activity into the last seven local days', () => {
+    const noon = (d: number) => new Date(2026, 2, d, 12).getTime();
+    const days = weekActivity('2026-03-10', [noon(10), noon(10), noon(3)], [noon(4)]);
+    expect(days.map((d) => d.day)[0]).toBe('2026-03-04');
+    expect(days.at(-1)).toEqual({ day: '2026-03-10', done: 2, studied: 0 });
+    expect(days[0]).toEqual({ day: '2026-03-04', done: 0, studied: 1 });
+  });
+  it('names days relative to today', () => {
+    expect(relativeDay('2026-03-01', '2026-02-28', 'en')).toBe('tomorrow');
+    expect(relativeDay('2026-02-25', '2026-02-28', 'en')).toBe('3 days ago');
+  });
+});

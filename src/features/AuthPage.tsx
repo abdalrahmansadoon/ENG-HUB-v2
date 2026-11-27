@@ -1,3 +1,4 @@
+import { BookOpen, ClipboardList, ListChecks, MessagesSquare } from 'lucide-react';
 import { useState } from 'react';
 import { useBackend } from '../data/context';
 import { useFeedback } from '../ui/feedback';
@@ -15,11 +16,17 @@ export default function AuthPage() {
 
   return (
     <main className="auth">
-      <div className="auth-brand">
+      <div className="auth-brand mat">
         <img src="./icon.svg" alt="" width="64" height="64" />
         <h1 dir="ltr">ENG HUB</h1>
         <p>{t('tagline')}</p>
+        <ul className="auth-points">
+          {([['tasks', ListChecks], ['subjects', BookOpen], ['quizzes', ClipboardList], ['chat', MessagesSquare]] as const).map(([key, Icon]) => (
+            <li key={key}><Icon size={20} aria-hidden />{t(key)}</li>
+          ))}
+        </ul>
       </div>
+      <div className="auth-side">
       <section className="card auth-card">
         {demo ? (
           <>
@@ -49,6 +56,7 @@ export default function AuthPage() {
         )}
       </section>
       <button className="text-btn" onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} lang={lang === 'ar' ? 'en' : 'ar'}>{lang === 'ar' ? 'English' : 'العربية'}</button>
+      </div>
     </main>
   );
 }

@@ -28,7 +28,7 @@ export default function QuizzesPage() {
       </div>
       <Status loading={quizzes.loading} error={quizzes.error} />
       {!quizzes.loading && !quizzes.error && !shown.length && <Empty title={t('noQuizzes')} />}
-      {shown.length > 0 && <ul className="card">
+      {shown.length > 0 && <ul className="card-grid">
         {shown.map((q) => (
           <li key={q.id}>
             <Link to={`/quizzes/${q.id}`} className="row link">

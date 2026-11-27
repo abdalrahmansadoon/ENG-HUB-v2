@@ -1,0 +1,2 @@
+/* من يطلب تقليل الحركة يحصل على الواجهة نفسها ثابتة. */
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }

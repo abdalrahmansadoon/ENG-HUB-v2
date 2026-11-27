@@ -70,7 +70,9 @@ function SubjectView({ subject }: { subject: Subject }) {
           </>}
         </div>
       </div>
-      <header className={`group tone-${toneOf(subject.order)}`}>
+      <div className="split cols">
+      <div>
+      <header className={`subject-head sheet tone-${toneOf(subject.order)}`}>
         <div className="subject-title"><span className="tile large"><SubjectIcon name={subject.icon} size={28} /></span><h1>{label(subject)}</h1></div>
         {items.data.length > 0 && <Meter value={items.data.filter((i) => studied.has(i.id)).length} total={items.data.length} label={t('progress')} />}
       </header>
@@ -116,8 +118,12 @@ function SubjectView({ subject }: { subject: Subject }) {
         </section>
       ))}
       {isAdmin && <button className="btn dashed block" onClick={() => setForm('item')}><Plus size={18} aria-hidden />{t('addItem')}</button>}
+      </div>
+      <div>
+      {next && <Link to={itemPath(next.id)} className="btn primary block"><Play size={18} className="flip" aria-hidden />{t('continueWith')}: {next.title}</Link>}
       <Link to={`/quizzes?subject=${subject.id}`} className="btn block"><ClipboardList size={18} aria-hidden />{t('subjectQuizzes')}</Link>
-      {next && <Link to={itemPath(next.id)} className="btn primary block"><Play size={18} aria-hidden />{t('continueWith')}: {next.title}</Link>}
+      </div>
+      </div>
       {form === 'item' && <ItemForm subjectId={subject.id} category={tab} onClose={() => setForm(null)} />}
       {form === 'subject' && <SubjectForm subject={subject} year={subject.year} term={subject.term} order={subject.order} onClose={() => setForm(null)} />}
     </>

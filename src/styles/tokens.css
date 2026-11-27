@@ -1,0 +1,66 @@
+/* ENG HUB: طاولة الرسم الهندسي. سطح قص أخضر بشبكته للهوية، وأوراق هادئة للمحتوى، وأصفر المسطرة للإشارة. */
+:root {
+  color-scheme: light;
+  --bg: #eef2f0; --surface: #ffffff; --surface-2: #e4ece9; --ink: #11211c; --soft: #4b6058;
+  --line: #d3deda; --line-soft: #e5ecea; --control: #778a83;
+  --primary: #0b6b52; --primary-strong: #08503e; --on-primary: #ffffff; --primary-soft: #d5eee4; --on-primary-soft: #07503c;
+  --mat: #0f3d33; --mat-raised: #17503f; --on-mat: #f1f8f5; --on-mat-soft: #b6d7ca; --mat-line: rgb(255 255 255 / .06); --mat-line-strong: rgb(255 255 255 / .12);
+  --signal: #f4c430; --on-signal: #231a00;
+  --green: #1c7040; --on-green: #ffffff; --green-soft: #ddf0e3; --red: #b3261e; --red-soft: #fbe7e5; --amber: #7f4600; --amber-soft: #fdf0d3;
+  --series-1: #0b7a5c; --series-2: #c2610c;
+  --seg-on: #ffffff; --toast: #11211c; --on-toast: #ffffff; --shadow: 0 10px 30px rgb(9 40 31 / .16);
+
+  --font-body: 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --font-display: 'Reem Kufi', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --radius-s: 8px; --radius-m: 12px; --radius-l: 18px;
+  --tabbar-h: calc(4.25rem + env(safe-area-inset-bottom)); --appbar-h: calc(3.75rem + env(safe-area-inset-top));
+  --ease: cubic-bezier(.2, .8, .2, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #0b1210; --surface: #131d1a; --surface-2: #1d2b26; --ink: #e7f0ec; --soft: #a0b5ad;
+    --line: #283833; --line-soft: #202e2a; --control: #6f877e;
+    --primary: #5fd3b0; --primary-strong: #8fe4ca; --on-primary: #04231a; --primary-soft: #173b30; --on-primary-soft: #aaeed8;
+    --mat: #0f2e26; --mat-raised: #184234; --on-mat: #eaf5f1; --on-mat-soft: #a8cbbe; --mat-line: rgb(255 255 255 / .05); --mat-line-strong: rgb(255 255 255 / .1);
+    --green: #70d39a; --on-green: #062414; --green-soft: #153524; --red: #ff9a8f; --red-soft: #431f1c; --amber: #f2c46b; --amber-soft: #3a2c10;
+    --series-1: #2fae84; --series-2: #d07a26;
+    --seg-on: #31453d; --toast: #e7f0ec; --on-toast: #11211c; --shadow: 0 10px 30px rgb(0 0 0 / .5);
+  }
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0b1210; --surface: #131d1a; --surface-2: #1d2b26; --ink: #e7f0ec; --soft: #a0b5ad;
+  --line: #283833; --line-soft: #202e2a; --control: #6f877e;
+  --primary: #5fd3b0; --primary-strong: #8fe4ca; --on-primary: #04231a; --primary-soft: #173b30; --on-primary-soft: #aaeed8;
+  --mat: #0f2e26; --mat-raised: #184234; --on-mat: #eaf5f1; --on-mat-soft: #a8cbbe; --mat-line: rgb(255 255 255 / .05); --mat-line-strong: rgb(255 255 255 / .1);
+  --green: #70d39a; --on-green: #062414; --green-soft: #153524; --red: #ff9a8f; --red-soft: #431f1c; --amber: #f2c46b; --amber-soft: #3a2c10;
+  --series-1: #2fae84; --series-2: #d07a26;
+  --seg-on: #31453d; --toast: #e7f0ec; --on-toast: #11211c; --shadow: 0 10px 30px rgb(0 0 0 / .5);
+}
+
+/* ألوان المواد */
+.tone-0 { --tone: var(--soft); --tone-soft: var(--surface-2); }
+.tone-1 { --tone: #2f45b8; --tone-soft: #e3e7fa; }
+.tone-2 { --tone: #6b2fb8; --tone-soft: #efe5fb; }
+.tone-3 { --tone: #08625f; --tone-soft: #d6efee; }
+.tone-4 { --tone: #9c3607; --tone-soft: #fbe5da; }
+.tone-5 { --tone: #9c1b59; --tone-soft: #fae0ec; }
+.tone-6 { --tone: #764900; --tone-soft: #fcecc9; }
+.tone-7 { --tone: #19633d; --tone-soft: #dcefe3; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .tone-1 { --tone: #b2bbff; --tone-soft: #232b52; }
+  :root:not([data-theme='light']) .tone-2 { --tone: #d3b3ff; --tone-soft: #32234a; }
+  :root:not([data-theme='light']) .tone-3 { --tone: #7fdbd7; --tone-soft: #103634; }
+  :root:not([data-theme='light']) .tone-4 { --tone: #ffb592; --tone-soft: #422310; }
+  :root:not([data-theme='light']) .tone-5 { --tone: #ffabce; --tone-soft: #43172c; }
+  :root:not([data-theme='light']) .tone-6 { --tone: #f2c46b; --tone-soft: #372a10; }
+  :root:not([data-theme='light']) .tone-7 { --tone: #8adbae; --tone-soft: #143323; }
+}
+:root[data-theme='dark'] .tone-1 { --tone: #b2bbff; --tone-soft: #232b52; }
+:root[data-theme='dark'] .tone-2 { --tone: #d3b3ff; --tone-soft: #32234a; }
+:root[data-theme='dark'] .tone-3 { --tone: #7fdbd7; --tone-soft: #103634; }
+:root[data-theme='dark'] .tone-4 { --tone: #ffb592; --tone-soft: #422310; }
+:root[data-theme='dark'] .tone-5 { --tone: #ffabce; --tone-soft: #43172c; }
+:root[data-theme='dark'] .tone-6 { --tone: #f2c46b; --tone-soft: #372a10; }
+:root[data-theme='dark'] .tone-7 { --tone: #8adbae; --tone-soft: #143323; }

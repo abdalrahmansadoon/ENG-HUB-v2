@@ -1,0 +1,77 @@
+/* الهيكل: على الهاتف شريط علوي وشريط تنقل سفلي، وعلى الكمبيوتر عمود جانبي بلون سطح القص. */
+.mat {
+  background-color: var(--mat); color: var(--on-mat);
+  background-image: linear-gradient(var(--mat-line-strong) 1px, transparent 1px), linear-gradient(90deg, var(--mat-line-strong) 1px, transparent 1px),
+    linear-gradient(var(--mat-line) 1px, transparent 1px), linear-gradient(90deg, var(--mat-line) 1px, transparent 1px);
+  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px; background-position: -1px -1px;
+}
+.mat :focus-visible { outline-color: var(--signal); }
+.skip { position: fixed; z-index: 30; top: .5rem; inset-inline-start: .5rem; translate: 0 -200%; }
+.skip:focus { translate: 0 0; }
+.side { display: none; }
+.frame { min-width: 0; display: flex; flex-direction: column; min-height: 100dvh; }
+.brand { display: inline-flex; align-items: center; gap: .6rem; font: 700 1.25rem/1 var(--font-display); white-space: nowrap; }
+.brand img { border-radius: var(--radius-s); }
+.appbar { position: sticky; top: 0; z-index: 6; display: flex; align-items: center; justify-content: space-between; gap: .75rem; min-height: var(--appbar-h); padding: env(safe-area-inset-top) 1rem 0; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.appbar-actions { display: flex; align-items: center; gap: .35rem; margin-inline-start: auto; }
+.appbar .avatar-link { display: none; }
+@media (max-width: 419px) { .appbar-actions .btn { width: 44px; padding: 0; } .appbar-actions .btn span { display: none; } }
+.lang-btn { font-weight: 700; font-size: .95rem; }
+
+.content { width: 100%; max-width: 46rem; margin-inline: auto; padding: 1.25rem 1rem calc(var(--tabbar-h) + 1.5rem); }
+.page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; align-content: start; animation: appear .25s ease backwards; }
+@keyframes appear { from { opacity: 0; } }
+.split { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; align-content: start; }
+.split > * { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; align-content: start; min-width: 0; }
+.split > :empty { display: none; }
+
+.tabbar { position: fixed; z-index: 7; inset-inline: 0; bottom: 0; display: flex; height: var(--tabbar-h); padding: .4rem .35rem env(safe-area-inset-bottom); background: var(--surface); border-top: 1px solid var(--line); }
+.tabbar a { flex: 1; min-width: 0; position: relative; display: grid; justify-items: center; align-content: center; gap: .1rem; font-size: .72rem; color: var(--soft); }
+.nav-icon { display: grid; place-items: center; width: 52px; height: 30px; border-radius: var(--radius-m); transition: background-color .2s var(--ease), color .2s; }
+.tabbar a.active { color: var(--ink); font-weight: 600; }
+.tabbar a.active .nav-icon { background: var(--mat); color: var(--signal); animation: pop .3s var(--ease); }
+@keyframes pop { 40% { transform: scale(1.12); } }
+.badge { position: absolute; top: 0; inset-inline-start: calc(50% + 8px); min-width: 1.25rem; padding-inline: .3rem; border-radius: 99px; background: var(--red); color: var(--surface); font-size: .7rem; font-weight: 700; line-height: 1.25rem; text-align: center; }
+
+.fab { position: fixed; z-index: 6; inset-inline-end: 1rem; bottom: calc(var(--tabbar-h) + .75rem); box-shadow: var(--shadow); min-height: 52px; }
+.page:has(> .fab)::after { content: ''; height: 3.5rem; }
+
+.page-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .75rem; }
+.page-head p { color: var(--soft); font-size: .9rem; }
+.topbar { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
+.back { display: grid; place-items: center; width: 44px; height: 44px; justify-self: start; border-radius: var(--radius-m); border: 1px solid var(--line); background: var(--surface); }
+.back:hover { border-color: var(--control); }
+
+/* الشات يملأ الشاشة دون تمرير للصفحة */
+.shell.in-chat .frame { height: 100dvh; min-height: 0; }
+.shell.in-chat .content { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-block: .6rem calc(var(--tabbar-h) + .5rem); }
+.shell.in-chat .page { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: .6rem; }
+
+@media (min-width: 900px) {
+  .shell { display: grid; grid-template-columns: 16rem minmax(0, 1fr); }
+  .tabbar { display: none; }
+  .side { position: sticky; top: 0; height: 100dvh; display: flex; flex-direction: column; gap: 1.5rem; padding: 1.25rem .9rem; overflow-y: auto; }
+  .side .brand { padding-inline: .6rem; font-size: 1.4rem; }
+  .side nav { display: grid; gap: .3rem; }
+  .side nav a { position: relative; display: flex; align-items: center; gap: .6rem; min-height: 48px; padding-inline: .6rem; border-radius: var(--radius-m); color: var(--on-mat-soft); font-weight: 500; transition: background-color .15s, color .15s; }
+  .side nav a:hover { background: var(--mat-raised); color: var(--on-mat); }
+  .side nav a.active { background: var(--signal); color: var(--on-signal); font-weight: 700; }
+  .side .nav-icon { width: 32px; }
+  .side .badge { position: static; margin-inline-start: auto; background: var(--on-mat); color: var(--mat); }
+  .side .me { margin-top: auto; display: flex; align-items: center; gap: .65rem; padding: .6rem; border-radius: var(--radius-m); background: var(--mat-raised); border: 1px solid var(--mat-line-strong); }
+  .side .me:hover { border-color: var(--on-mat-soft); }
+  .side .me.active { border-color: var(--signal); }
+  .me span:last-child { min-width: 0; display: grid; line-height: 1.4; }
+  .me strong { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .me small { color: var(--on-mat-soft); }
+  .appbar { padding-inline: 2rem; }
+  .appbar > .brand { display: none; }
+  .appbar .avatar-link { display: block; border-radius: 50%; padding: 2px; }
+  .content { max-width: 48rem; padding: 1.75rem 2rem 3rem; }
+  .content.wide { max-width: 76rem; }
+  .fab { bottom: 1.5rem; inset-inline-end: 2rem; }
+  .shell.in-chat .content { padding-block: 1rem; }
+}
+@media (min-width: 1100px) {
+  .split.cols { grid-template-columns: minmax(0, 1fr) 21rem; }
+}
