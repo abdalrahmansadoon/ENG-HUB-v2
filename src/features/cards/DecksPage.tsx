@@ -23,7 +23,7 @@ function List() {
   if (decks.loading || cards.loading || decks.error || cards.error) return <Status loading={decks.loading || cards.loading} error={decks.error ?? cards.error} />;
   return (
     <>
-      {due > 0 && <Link to="/cards/review" className="btn signal block"><Play size={18} className="flip" aria-hidden /><span>{t('reviewDue')} (<bdi>{due}</bdi>)</span></Link>}
+      {due > 0 && <Link to="/cards/review" className="btn signal block"><Play size={18} aria-hidden /><span>{t('reviewDue')} (<bdi>{due}</bdi>)</span></Link>}
       {!decks.data.length ? (
         <Empty title={t('noDecks')}><span>{t('noDecksHint')}</span><button type="button" className="btn primary" onClick={() => setAdding(true)}>{t('newDeck')}</button></Empty>
       ) : (

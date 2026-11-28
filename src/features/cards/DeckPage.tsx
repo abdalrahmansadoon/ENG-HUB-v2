@@ -51,7 +51,7 @@ function Content({ deckId }: { deckId: string }) {
         <p className="meta"><span className={`subject-dot tone-${subjects.tone(deck.data.subjectId)}`}>{subjects.nameOf(deck.data.subjectId)}</span><span>{t('cardsCount')}: <bdi>{cards.data.length}</bdi></span></p>
       </header>
       {cards.data.length > 0 && <div className="actions">
-        {due > 0 && <Link to={`/cards/${deckId}/review`} className="btn signal"><Play size={18} className="flip" aria-hidden /><span>{t('reviewDue')} (<bdi>{due}</bdi>)</span></Link>}
+        {due > 0 && <Link to={`/cards/${deckId}/review`} className="btn signal"><Play size={18} aria-hidden /><span>{t('reviewDue')} (<bdi>{due}</bdi>)</span></Link>}
         <Link to={`/cards/${deckId}/review?all=1`} className="btn"><Repeat size={18} aria-hidden />{t('practiceAll')}</Link>
       </div>}
       <Status loading={cards.loading} error={cards.error} />

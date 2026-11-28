@@ -67,12 +67,12 @@ export default function TimerCard() {
       <p className="sr" role="status">{t(running ? 'timerRunning' : started ? 'timerPaused' : 'timerReady')}</p>
       <div className="timer-actions">
         <button type="button" className="btn signal" onClick={running ? pomodoro.pause : pomodoro.start}>
-          {running ? <Pause size={20} aria-hidden /> : <Play size={20} className="flip" aria-hidden />}
+          {running ? <Pause size={20} aria-hidden /> : <Play size={20} aria-hidden />}
           {t(running ? 'pauseTimer' : started ? 'resumeTimer' : 'startTimer')}
         </button>
         {started && timer.phase === 'focus' && <button type="button" className="btn on-mat" onClick={pomodoro.finish}><Save size={18} aria-hidden />{t('finishSave')}</button>}
         {started && <button type="button" className="btn on-mat" onClick={pomodoro.reset}><RotateCcw size={18} aria-hidden />{t('resetTimer')}</button>}
-        <button type="button" className="btn on-mat" onClick={pomodoro.skip}><SkipForward size={18} className="flip" aria-hidden />{t('skipPhase')}</button>
+        <button type="button" className="btn on-mat" onClick={pomodoro.skip}><SkipForward size={18} aria-hidden />{t('skipPhase')}</button>
       </div>
       <div className="timer-fields">
         <select aria-label={t('subject')} value={timer.subjectId} onChange={(e) => pomodoro.describe(e.target.value, timer.goal)}>

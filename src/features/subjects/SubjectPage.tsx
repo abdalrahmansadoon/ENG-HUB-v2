@@ -120,7 +120,7 @@ function SubjectView({ subject }: { subject: Subject }) {
       {isAdmin && <button className="btn dashed block" onClick={() => setForm('item')}><Plus size={18} aria-hidden />{t('addItem')}</button>}
       </div>
       <div>
-      {next && <Link to={itemPath(next.id)} className="btn primary block"><Play size={18} className="flip" aria-hidden />{t('continueWith')}: {next.title}</Link>}
+      {next && <Link to={itemPath(next.id)} className="btn primary block"><Play size={18} aria-hidden />{t('continueWith')}: {next.title}</Link>}
       <Link to={`/quizzes?subject=${subject.id}`} className="btn block"><ClipboardList size={18} aria-hidden />{t('subjectQuizzes')}</Link>
       </div>
       </div>

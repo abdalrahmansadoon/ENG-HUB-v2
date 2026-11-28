@@ -188,7 +188,7 @@ export default function HomePage() {
             </div>
           </div>
           <p className="hero-meta"><span>{t(yearKey)}</span><span>{t(termKey)}</span></p>
-          {next && <Link to={`/subjects/${next.subjectId}/items/${next.id}`} className="btn signal"><Play size={18} className="flip" aria-hidden />{t('continueWith')}: {next.title}</Link>}
+          {next && <Link to={`/subjects/${next.subjectId}/items/${next.id}`} className="btn signal"><Play size={18} aria-hidden />{t('continueWith')}: {next.title}</Link>}
         </div>
         <Gauge value={todayOnly.filter((x) => mine(x.id) === 'done').length} total={todayOnly.length} />
       </header>
