@@ -108,7 +108,7 @@ a.row-main { align-self: stretch; align-content: center; }
 
 /* حالات عامة */
 .empty { display: grid; justify-items: center; gap: .6rem; text-align: center; padding: 2rem 1.25rem; border-radius: var(--radius-l); background: var(--surface); border: 1.5px dashed var(--line); color: var(--soft); }
-.empty p { font-weight: 600; color: var(--ink); }
+.empty p, .empty h1 { font: 600 1rem/1.7 var(--font-body); color: var(--ink); word-spacing: normal; }
 .loading { display: grid; gap: .6rem; }
 .loading i { display: block; height: 68px; border-radius: var(--radius-l); background: linear-gradient(100deg, var(--surface-2) 30%, var(--surface) 50%, var(--surface-2) 70%) 0 0 / 300% 100%; animation: shimmer 1.4s linear infinite; }
 .loading i + i { opacity: .7; }

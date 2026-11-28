@@ -260,6 +260,88 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)('قواعد Firestore', ()
     await assertSucceeds(batch.commit());
   });
 
+  const session = (extra = {}) => ({
+    subjectId: 'calc', taskId: '', date: '2026-11-28', start: '18:30', planned: 25, actual: 25, goal: '', notes: '', status: 'done', createdAt: serverTimestamp(), ...extra,
+  });
+
+  it('بيانات المذاكرة لصاحبها وحده، حتى المشرف لا يقرؤها', async () => {
+    const path = 'users/sara/sessions/s1';
+    await assertSucceeds(setDoc(at(sara(), path), session({ timer: true })));
+    await assertSucceeds(updateDoc(at(sara(), path), { status: 'skipped', actual: 0 }));
+    await assertSucceeds(getDocs(query(many(sara(), 'users/sara/sessions'), where('date', '>=', '2026-09-01'))));
+    await assertFails(getDoc(at(omar(), path)));
+    await assertFails(getDoc(at(admin(), path)));
+    await assertFails(setDoc(at(omar(), 'users/sara/sessions/s2'), session()));
+    await assertSucceeds(deleteDoc(at(sara(), path)));
+  });
+
+  it('الجلسة بشكل غير صحيح مرفوضة', async () => {
+    for (const bad of [{ planned: 5000 }, { actual: -1 }, { date: 'غداً' }, { start: '9pm' }, { status: 'maybe' }, { extra: 1 }]) {
+      await assertFails(setDoc(at(sara(), 'users/sara/sessions/bad'), session(bad)));
+    }
+    await assertSucceeds(setDoc(at(sara(), 'users/sara/sessions/ok'), session({ start: '' })));
+  });
+
+  it('الأهداف وإعدادات المذاكرة والإشعارات', async () => {
+    const goals = { date: '2026-11-28', items: [{ text: 'x', done: false }] };
+    await assertSucceeds(setDoc(at(sara(), 'users/sara/goals/2026-11-28'), goals));
+    await assertFails(setDoc(at(sara(), 'users/sara/goals/2026-11-29'), goals));
+    await assertFails(getDoc(at(omar(), 'users/sara/goals/2026-11-28')));
+    await assertSucceeds(setDoc(at(sara(), 'users/sara/settings/planner'), { target: 90, rest: [5, 6] }));
+    await assertFails(setDoc(at(sara(), 'users/sara/settings/planner'), { target: 0, rest: [] }));
+    const inbox = { readBefore: 0, read: ['a'], unread: [], dismissed: [], off: ['content'], quietFrom: '23:00', quietTo: '07:00' };
+    await assertSucceeds(setDoc(at(sara(), 'users/sara/settings/inbox'), inbox));
+    await assertSucceeds(getDoc(at(sara(), 'users/sara/settings/inbox')));
+    await assertFails(setDoc(at(sara(), 'users/sara/settings/inbox'), { ...inbox, quietFrom: 'ليلاً' }));
+    await assertFails(setDoc(at(sara(), 'users/sara/settings/other'), { a: 1 }));
+    await assertFails(setDoc(at(omar(), 'users/sara/settings/inbox'), inbox));
+  });
+
+  it('الملاحظات: خاصة، وتاريخ إنشائها ثابت', async () => {
+    const path = 'users/sara/notes/n1';
+    const note = { title: 'x', body: '$a$', subjectId: '', itemId: '', tags: [], images: [], createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+    await assertSucceeds(setDoc(at(sara(), path), note));
+    await assertSucceeds(updateDoc(at(sara(), path), { body: 'y', updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(at(sara(), path), { createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(at(sara(), path), { images: ['https://evil.test/a.png'], updatedAt: serverTimestamp() }));
+    await assertFails(getDoc(at(admin(), path)));
+    await assertFails(getDocs(many(omar(), 'users/sara/notes')));
+    await assertSucceeds(deleteDoc(at(sara(), path)));
+  });
+
+  it('البطاقات ومجموعاتها', async () => {
+    await assertSucceeds(setDoc(at(sara(), 'users/sara/decks/d1'), { name: 'قوانين', subjectId: '', createdAt: serverTimestamp() }));
+    const card = {
+      deckId: 'd1', front: 'س', back: 'ج', image: '', tags: [], difficulty: 'medium', ease: 2.5, interval: 0, due: '2026-11-28',
+      reviews: 0, lapses: 0, history: [], createdAt: serverTimestamp(),
+    };
+    await assertSucceeds(setDoc(at(sara(), 'users/sara/cards/c1'), card));
+    await assertSucceeds(updateDoc(at(sara(), 'users/sara/cards/c1'), {
+      ease: 2, interval: 3, due: '2026-12-01', reviews: 1, history: [{ at: 1, rating: 2 }], reviewedAt: serverTimestamp(),
+    }));
+    await assertFails(updateDoc(at(sara(), 'users/sara/cards/c1'), { interval: 9000 }));
+    await assertFails(setDoc(at(sara(), 'users/sara/cards/c2'), { ...card, front: '' }));
+    await assertFails(getDoc(at(omar(), 'users/sara/cards/c1')));
+  });
+
+  it('الإعلانات: يقرؤها الجميع ويكتبها المشرف', async () => {
+    const ad = { title: 'امتحان', body: '', kind: 'exam', date: '2026-12-10', subjectId: 'calc', pinned: true, createdBy: 'boss', createdAt: serverTimestamp() };
+    await assertSucceeds(setDoc(at(admin(), 'announcements/a1'), ad));
+    await assertSucceeds(updateDoc(at(admin(), 'announcements/a1'), { pinned: false }));
+    await assertSucceeds(getDocs(query(many(sara(), 'announcements'), orderBy('createdAt', 'desc'), limit(60))));
+    await assertFails(setDoc(at(sara(), 'announcements/a2'), { ...ad, createdBy: 'sara' }));
+    await assertFails(updateDoc(at(sara(), 'announcements/a1'), { title: 'y' }));
+    await assertFails(setDoc(at(admin(), 'announcements/a3'), { ...ad, createdBy: 'omar' }));
+    await assertFails(setDoc(at(admin(), 'announcements/a4'), { ...ad, kind: 'spam' }));
+    await assertFails(getDoc(at(guest(), 'announcements/a1')));
+    await assertSucceeds(deleteDoc(at(admin(), 'announcements/a1')));
+  });
+
+  it('فحص نسخة القواعد: للمسجلين فقط', async () => {
+    await assertSucceeds(getDoc(at(sara(), 'probe/r3')));
+    await assertFails(getDoc(at(guest(), 'probe/r3')));
+  });
+
   it('أي مسار غير معرّف مرفوض', async () => {
     await assertFails(getDoc(doc(admin(), 'v2/other/subjects/calc')));
     await assertFails(setDoc(doc(admin(), 'whatever/x'), { a: 1 }));

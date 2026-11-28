@@ -17,7 +17,7 @@ export default function QuizPage() {
   const { quizId = '' } = useParams();
   const quiz = useDoc<Quiz>(`quizzes/${quizId}`);
   const { t } = usePrefs();
-  if (quiz.loading || !quiz.data) return <><BackLink to="/quizzes" />{quiz.loading ? <Status loading /> : <Empty title={t('notFound')} />}</>;
+  if (quiz.loading || !quiz.data) return <><BackLink to="/quizzes" />{quiz.loading ? <Status loading /> : <Empty page title={t('notFound')} />}</>;
   return <QuizView key={quizId} quiz={quiz.data} />;
 }
 

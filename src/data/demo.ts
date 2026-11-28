@@ -37,10 +37,37 @@ function seed(): Record<string, Data> {
     ],
   };
   db['quizzes/q1/private/key'] = { answers: [1, 1] };
+  // مذاكرة الطالب التجريبي: جلسات وأهداف وملاحظة وبطاقتان.
+  const mine = (path: string, data: Data) => { db[`users/demo-student/${path}`] = data; };
+  const session = (id: string, offset: number, subjectId: string, minutes: number, goal: string, extra: Data = {}) => mine(`sessions/${id}`, {
+    subjectId, taskId: '', date: addDays(today(), offset), start: '', planned: minutes, actual: minutes, goal, notes: '', status: 'done', createdAt: now + offset, ...extra,
+  });
+  session('s1', -3, 'calculus-1', 70, 'مراجعة النهايات (مثال)');
+  session('s2', -2, 'physics-1', 40, 'مسائل المتجهات (مثال)');
+  session('s3', -1, 'statics', 65, 'محصلة القوى (مثال)', { start: '19:00' });
+  session('s4', 0, 'calculus-1', 25, 'شيت 3 (مثال)', { start: '16:00', taskId: 't1' });
+  session('s5', 0, 'statics', 45, 'محاضرة محصلة القوى (مثال)', { start: '21:00', taskId: 't3', status: 'planned', actual: 0 });
+  mine('settings/planner', { target: 60, rest: [5] });
+  mine(`goals/${today()}`, { date: today(), items: [{ text: 'حل 4 مسائل نهايات (مثال)', done: true }, { text: 'رسم المسقط الأفقي (مثال)', done: false }] });
+  mine('notes/n1', {
+    title: 'قاعدة لوبيتال (ملاحظة مثال)', subjectId: 'calculus-1', itemId: 'i1', tags: ['نهايات', 'قوانين'], images: [], createdAt: now, updatedAt: now,
+    body: 'عند الصورة $\\frac{0}{0}$ نشتق البسط والمقام:\n$$\\lim_{x \\to a} \\frac{f(x)}{g(x)} = \\lim_{x \\to a} \\frac{f\'(x)}{g\'(x)}$$\nمثال: $\\lim_{x \\to 0} \\frac{\\sin x}{x} = 1$',
+  });
+  mine('decks/d1', { name: 'وحدات الفيزياء (مثال)', subjectId: 'physics-1', createdAt: now });
+  const card = (id: string, front: string, back: string) => mine(`cards/${id}`, {
+    deckId: 'd1', front, back, image: '', tags: [], difficulty: 'medium', ease: 2.5, interval: 0, due: today(), reviews: 0, lapses: 0, history: [], createdAt: now,
+  });
+  card('c1', 'ما وحدة الشغل؟', 'الجول: $J = N \\cdot m$');
+  card('c2', 'اكتب قانون نيوتن الثاني.', '$$\\vec F = m \\vec a$$');
+  const announce = (id: string, title: string, kind: string, extra: Data = {}) => {
+    db[`announcements/${id}`] = { title, body: '', kind, date: '', subjectId: '', pinned: false, createdBy: 'demo-admin', createdAt: now, ...extra };
+  };
+  announce('a1', 'امتحان منتصف الترم في الفيزياء (مثال)', 'exam', { body: 'من أول المنهج حتى محاضرة المتجهات.', date: addDays(today(), 9), subjectId: 'physics-1', pinned: true });
+  announce('a2', 'تغيير موعد سكشن الرسم (مثال)', 'schedule', { date: addDays(today(), 3), subjectId: 'technical-drawing', createdAt: now - 3_600_000 });
   return db;
 }
 
-const DB_KEY = 'enghub.demo.db.v2';
+const DB_KEY = 'enghub.demo.db.v3';
 const USER_KEY = 'enghub.demo.user';
 const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const write = (k: string, v: string | null) => {

@@ -19,17 +19,17 @@ const weekOrder = [6, 0, 1, 2, 3, 4, 5];
 const dayKey = (n: number) => addDays('2026-01-03', (n + 1) % 7); // 3 يناير 2026 سبت
 const diff = (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
 
-interface Props { task?: Task; copy?: Task; later?: Task[]; onClose(): void }
+interface Props { task?: Task; copy?: Task; later?: Task[]; /** يبدأ مهمة خاصة بصاحبها */ own?: boolean; onClose(): void }
 
 /** إضافة مهمة أو تعديلها. `copy` يبدأ مهمة جديدة من أخرى، و`later` النسخ التالية في السلسلة. */
-export default function TaskForm({ task, copy, later = [], onClose }: Props) {
+export default function TaskForm({ task, copy, later = [], own = false, onClose }: Props) {
   const store = useStore();
   const { user, isAdmin, rules2 } = useSession();
   const { t, lang } = usePrefs();
   const { run, toast } = useFeedback();
   const subjects = useSubjects();
   const from = task ?? copy;
-  const [who, setWho] = useState<Who>(!isAdmin || from?.personal ? 'me' : !from || from.audience.includes('all') ? 'all' : 'some');
+  const [who, setWho] = useState<Who>(!isAdmin || own || from?.personal ? 'me' : !from || from.audience.includes('all') ? 'all' : 'some');
   const members = useCollection<Profile>(isAdmin ? 'profiles' : null);
   const [picked, setPicked] = useState<string[]>(from && !from.personal ? from.audience.filter((a) => a !== 'all') : []);
   const [title, setTitle] = useState(copy ? `${copy.title} ${t('copySuffix')}`.slice(0, 140) : task?.title ?? '');
@@ -90,7 +90,8 @@ export default function TaskForm({ task, copy, later = [], onClose }: Props) {
 
     const ok = await run(async () => {
       if (task) {
-        const entries: [string, Data][] = [[`${root}/${task.id}`, { ...content, dueDate, startDate }]];
+        const moved = !personal && dueDate !== task.dueDate;
+        const entries: [string, Data][] = [[`${root}/${task.id}`, { ...content, dueDate, startDate, ...(moved && { dueChangedAt: NOW }) }]];
         // النسخ التالية تأخذ المحتوى نفسه وتحتفظ بمواعيدها.
         if (apply) for (const other of later) entries.push([`${root}/${other.id}`, content]);
         await store.setMany(entries, { merge: true });
@@ -199,7 +200,7 @@ export default function TaskForm({ task, copy, later = [], onClose }: Props) {
         </details>
 
         {task && rules2 && !personal && <label className="check"><input type="checkbox" checked={cancelled} onChange={(e) => setCancelled(e.target.checked)} />{t('cancelTask')}</label>}
-        {task && later.length > 0 && <label className="check"><input type="checkbox" checked={apply} onChange={(e) => setApply(e.target.checked)} />{t('applyFollowing')} (<bdi>{later.length}</bdi>)</label>}
+        {task && later.length > 0 && <label className="check"><input type="checkbox" checked={apply} onChange={(e) => setApply(e.target.checked)} /><span>{t('applyFollowing')} (<bdi>{later.length}</bdi>)</span></label>}
       </Form>
     </Dialog>
   );

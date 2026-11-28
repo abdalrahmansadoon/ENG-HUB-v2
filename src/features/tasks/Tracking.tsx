@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { useCollection, useSession } from '../../data/context';
 import type { Profile, Submission, Task, TaskResponse } from '../../data/types';
 import { today } from '../../lib/dates';
-import { lateDays, toCsv, viewStatus, type ViewStatus } from '../../lib/tasks';
+import { downloadCsv } from '../../lib/download';
+import { lateDays, viewStatus, type ViewStatus } from '../../lib/tasks';
 import { useFeedback } from '../../ui/feedback';
 import { Avatar, Dialog, Empty, Field, Status } from '../../ui/kit';
 import { usePrefs } from '../../ui/prefs';
@@ -31,14 +32,10 @@ export default function Tracking({ task, members, responses }: { task: Task; mem
 
   const exportCsv = () => {
     const header = [t('member'), t('status'), t('startedCol'), t('handedIn'), t('delay'), t('attempts'), t('reviewCol')];
-    const csv = toCsv([header, ...rows.map(({ member, r, view, late }) => [
+    downloadCsv(task.title, [header, ...rows.map(({ member, r, view, late }) => [
       member.name, t(statusKeys[view]), r?.startedAt ? stamp(r.startedAt) : '', r?.submittedAt ? stamp(r.submittedAt) : '',
       late, r?.version ?? 0, r?.reviewedAt ? stamp(r.reviewedAt) : '',
     ])]);
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    const a = Object.assign(document.createElement('a'), { href: url, download: `${task.title.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'task'}.csv` });
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const showReview = task.review && rules2;

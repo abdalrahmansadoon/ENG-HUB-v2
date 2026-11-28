@@ -6,6 +6,8 @@ import { useRules } from './data/rules';
 import type { Profile } from './data/types';
 import AuthPage from './features/AuthPage';
 import HomePage from './features/home/HomePage';
+import { InboxProvider } from './features/inbox/inbox';
+import { PomodoroProvider } from './features/study/pomodoro';
 import { ResponsesProvider } from './features/tasks/responses';
 import Layout from './Layout';
 import { useFeedback } from './ui/feedback';
@@ -13,7 +15,19 @@ import { Splash, Status } from './ui/kit';
 import { usePrefs } from './ui/prefs';
 
 // الرئيسية تُحمّل مع التطبيق، وبقية الصفحات عند فتحها.
+const AnnouncementsPage = lazy(() => import('./features/announcements/AnnouncementsPage'));
+const CalendarPage = lazy(() => import('./features/calendar/CalendarPage'));
+const DeckPage = lazy(() => import('./features/cards/DeckPage'));
+const DecksPage = lazy(() => import('./features/cards/DecksPage'));
+const ReviewPage = lazy(() => import('./features/cards/ReviewPage'));
 const ChatPage = lazy(() => import('./features/chat/ChatPage'));
+const NotificationsPage = lazy(() => import('./features/inbox/NotificationsPage'));
+const MorePage = lazy(() => import('./features/MorePage'));
+const NewNote = lazy(() => import('./features/notes/NewNote'));
+const NotePage = lazy(() => import('./features/notes/NotePage'));
+const NotesPage = lazy(() => import('./features/notes/NotesPage'));
+const StatsPage = lazy(() => import('./features/stats/StatsPage'));
+const StudyPage = lazy(() => import('./features/study/StudyPage'));
 const ProfilePage = lazy(() => import('./features/ProfilePage'));
 const QuizPage = lazy(() => import('./features/quizzes/QuizPage'));
 const QuizzesPage = lazy(() => import('./features/quizzes/QuizzesPage'));
@@ -66,7 +80,7 @@ function SignedIn({ user }: { user: AuthUser }) {
     <SessionContext.Provider value={session}>
       <HashRouter>
         <Routes>
-          <Route element={<ResponsesProvider><Layout /></ResponsesProvider>}>
+          <Route element={<ResponsesProvider><PomodoroProvider><InboxProvider><Layout /></InboxProvider></PomodoroProvider></ResponsesProvider>}>
             <Route index element={<HomePage />} />
             <Route path="tasks" element={<TasksPage />} />
             <Route path="tasks/:taskId" element={<TaskPage />} />
@@ -78,6 +92,19 @@ function SignedIn({ user }: { user: AuthUser }) {
             <Route path="quizzes" element={<QuizzesPage />} />
             <Route path="quizzes/:quizId" element={<QuizPage />} />
             <Route path="profile" element={<ProfilePage />} />
+            <Route path="more" element={<MorePage />} />
+            <Route path="calendar" element={<CalendarPage />} />
+            <Route path="study" element={<StudyPage />} />
+            <Route path="notes" element={<NotesPage />} />
+            <Route path="notes/new" element={<NewNote />} />
+            <Route path="notes/:noteId" element={<NotePage />} />
+            <Route path="cards" element={<DecksPage />} />
+            <Route path="cards/review" element={<ReviewPage />} />
+            <Route path="cards/:deckId" element={<DeckPage />} />
+            <Route path="cards/:deckId/review" element={<ReviewPage />} />
+            <Route path="stats" element={<StatsPage />} />
+            <Route path="announcements" element={<AnnouncementsPage />} />
+            <Route path="notifications" element={<NotificationsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

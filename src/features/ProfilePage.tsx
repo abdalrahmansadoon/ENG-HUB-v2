@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, ClipboardList, Download, LogOut } from 'lucide-react';
+import { Download, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useBackend, useSession } from '../data/context';
@@ -17,7 +17,6 @@ export default function ProfilePage() {
   const supported = typeof Notification !== 'undefined';
   const [permission, setPermission] = useState(supported ? Notification.permission : 'denied');
   const canInstall = useCanInstall();
-  const Chevron = lang === 'ar' ? ChevronLeft : ChevronRight;
   return (
     <>
       <header className="person mat">
@@ -27,9 +26,6 @@ export default function ProfilePage() {
         {isAdmin && <span className="tag accepted">{t('admin')}</span>}
       </header>
       {!user.emailVerified && <div className="notice"><p>{t('verifyNote')}</p><button className="btn small" onClick={() => run(() => auth.verifyEmail(), 'sent')}>{t('sendVerify')}</button></div>}
-      <nav className="card" aria-label={t('more')}>
-        <Link to="/quizzes" className="row link"><span className="tile small"><ClipboardList size={18} aria-hidden /></span><span className="row-main"><strong>{t('quizzes')}</strong></span><Chevron size={18} aria-hidden /></Link>
-      </nav>
       <div className="profile-grid">
       <section className="card pad">
         <Form submitLabel={t('save')} disabled={!value.trim() || value.trim() === name}
@@ -49,6 +45,7 @@ export default function ProfilePage() {
           : permission === 'granted' ? <p className="muted">{t('notificationsOn')}</p>
           : permission === 'denied' ? <p className="muted">{t('notificationsBlocked')}</p>
           : <button className="btn tonal" onClick={() => run(async () => setPermission(await Notification.requestPermission()))}>{t('enableNotifications')}</button>}
+        <Link className="text-btn" to="/notifications">{t('notificationSettings')}</Link>
       </section>
       <section className="card pad">
         <h2>{t('app')}</h2>

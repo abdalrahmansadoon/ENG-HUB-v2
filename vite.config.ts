@@ -19,6 +19,7 @@ function serviceWorker(): Plugin {
       for (const name of built.sort()) hash.update(name);
       for (const name of fixed) hash.update(readFileSync(`public/${name}`));
       hash.update(readFileSync('index.html'));
+      hash.update(serviceWorkerSource('', []));
       this.emitFile({ type: 'asset', fileName: 'sw.js', source: serviceWorkerSource(hash.digest('hex').slice(0, 12), files) });
     },
   };

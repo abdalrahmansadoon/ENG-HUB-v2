@@ -20,3 +20,16 @@ const dayNumber = (key: string) => { const [y, m, d] = key.split('-').map(Number
 /** "غداً" أو "خلال 3 أيام" نسبةً إلى تاريخ مرجعي. */
 export const relativeDay = (key: string, from: string, lang: string) =>
   new Intl.RelativeTimeFormat(locale(lang), { numeric: 'auto' }).format(dayNumber(key) - dayNumber(from), 'day');
+
+/** 0 الأحد … 6 السبت */
+export const weekdayIndex = (key: string) => parse(key).getDay();
+export const startOfDay = (key: string) => parse(key).getTime();
+export const daysBetween = (from: string, to: string) => dayNumber(to) - dayNumber(from);
+export const monthTitle = (key: string, lang: string) => new Intl.DateTimeFormat(locale(lang), { month: 'long', year: 'numeric' }).format(parse(key));
+/** HH:mm بالتوقيت المحلي. */
+export const clockKey = (ms: number) => { const d = new Date(ms); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+/** "14:30" حسب لغة العرض. */
+export const formatClock = (clock: string, lang: string) => {
+  const [h, m] = clock.split(':').map(Number);
+  return formatTime(new Date(2026, 0, 1, h, m).getTime(), lang);
+};

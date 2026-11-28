@@ -27,7 +27,10 @@ self.addEventListener('fetch', (event) => {
 });
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const target = new URL('./#/tasks' + (event.notification.tag ? '/' + encodeURIComponent(event.notification.tag) : ''), self.registration.scope).href;
+  // المسار داخل التطبيق يأتي مع الإشعار؛ غير ذلك نفتح مركز الإشعارات.
+  const to = event.notification.data && event.notification.data.to;
+  const path = typeof to === 'string' && to.startsWith('/') ? to : '/notifications';
+  const target = new URL('./#' + path, self.registration.scope).href;
   event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (list) => {
     const open = list.find((c) => c.url.startsWith(self.registration.scope));
     if (!open) return self.clients.openWindow(target);

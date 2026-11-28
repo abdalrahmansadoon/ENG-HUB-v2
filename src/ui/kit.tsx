@@ -3,7 +3,7 @@ import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } fr
 import { Link } from 'react-router-dom';
 import { usePrefs } from './prefs';
 
-export function Dialog({ title, onClose, children }: { title: string; onClose(): void; children: ReactNode }) {
+export function Dialog({ title, onClose, children, className }: { title: string; onClose(): void; children: ReactNode; className?: string }) {
   const { t } = usePrefs();
   const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
@@ -14,7 +14,7 @@ export function Dialog({ title, onClose, children }: { title: string; onClose():
     return () => { el.close(); opener?.focus?.(); };
   }, []);
   return (
-    <dialog ref={ref} aria-labelledby={id} onCancel={(e) => { e.preventDefault(); onClose(); }}>
+    <dialog ref={ref} className={className} aria-labelledby={id} onCancel={(e) => { e.preventDefault(); onClose(); }}>
       <header className="dialog-head">
         <h2 id={id}>{title}</h2>
         <button type="button" className="icon-btn plain" onClick={onClose} aria-label={t('close')}><X size={20} /></button>
@@ -65,8 +65,9 @@ export function Avatar({ name, url, size, tone }: { name: string; url?: string; 
   );
 }
 
-export function Empty({ title, children }: { title: string; children?: ReactNode }) {
-  return <div className="empty"><p>{title}</p>{children}</div>;
+/** `page` حين تكون الحالة هي محتوى الصفحة كله، فيصبح العنوان عنوان الصفحة. */
+export function Empty({ title, page, children }: { title: string; page?: boolean; children?: ReactNode }) {
+  return <div className="empty">{page ? <h1>{title}</h1> : <p>{title}</p>}{children}</div>;
 }
 
 export function Status({ loading, error }: { loading?: boolean; error?: Error | null }) {

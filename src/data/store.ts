@@ -2,7 +2,7 @@
 export const NOW = '__server_now__';
 
 export interface QueryOptions {
-  where?: [field: string, op: '==' | 'array-contains-any', value: unknown];
+  where?: [field: string, op: '==' | '>=' | 'array-contains-any', value: unknown];
   orderBy?: [field: string, dir: 'asc' | 'desc'];
   limit?: number;
 }

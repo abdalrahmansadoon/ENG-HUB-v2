@@ -28,7 +28,7 @@ export default function ChatPage() {
       <h1 className="sr">{t('chat')}</h1>
       <nav className="chips" ref={tabs} aria-label={t('chat')}>{rooms.map((r) => <NavLink key={r.id} to={`/chat/${r.id}`} className={r.tone ? `tone-${r.tone}` : ''}>{r.name}</NavLink>)}</nav>
       <div className="room">
-        {known ? <RoomView key={roomId} roomId={roomId} /> : subjects.loading ? <Status loading /> : <Empty title={t('notFound')} />}
+        {known ? <RoomView key={roomId} roomId={roomId} /> : subjects.loading ? <Status loading /> : <Empty page title={t('notFound')} />}
       </div>
     </div>
   );

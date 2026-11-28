@@ -1,6 +1,7 @@
-import { BookPlus, ClipboardPlus, ListPlus, Plus } from 'lucide-react';
+import { BookPlus, ClipboardPlus, ListPlus, Megaphone, Plus } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useSession } from '../data/context';
 import { Dialog } from '../ui/kit';
 import { usePrefs } from '../ui/prefs';
 import { savedTerm } from './subjects/terms';
@@ -9,8 +10,9 @@ import { useSubjects } from './useSubjects';
 const TaskForm = lazy(() => import('./tasks/TaskForm'));
 const QuizForm = lazy(() => import('./quizzes/QuizForm'));
 const SubjectForm = lazy(() => import('./subjects/SubjectForm'));
+const AnnouncementForm = lazy(() => import('./announcements/AnnouncementForm'));
 
-type Choice = 'menu' | 'task' | 'quiz' | 'subject';
+type Choice = 'menu' | 'task' | 'quiz' | 'subject' | 'announcement';
 
 /** المادة الجديدة تُضاف آخر ترتيب الترم المختار. */
 function NewSubject({ onClose }: { onClose(): void }) {
@@ -23,6 +25,7 @@ function NewSubject({ onClose }: { onClose(): void }) {
 /** زر الإضافة السريعة للمشرف، من أي صفحة. */
 export default function QuickAdd() {
   const { t } = usePrefs();
+  const { rules3 } = useSession();
   const [open, setOpen] = useState<Choice | null>(null);
   const close = () => setOpen(null);
   return (
@@ -36,6 +39,7 @@ export default function QuickAdd() {
               <button className="btn" onClick={() => setOpen('task')}><ListPlus size={20} aria-hidden />{t('newTask')}</button>
               <button className="btn" onClick={() => setOpen('quiz')}><ClipboardPlus size={20} aria-hidden />{t('newQuiz')}</button>
               <button className="btn" onClick={() => setOpen('subject')}><BookPlus size={20} aria-hidden />{t('addSubject')}</button>
+              {rules3 && <button className="btn" onClick={() => setOpen('announcement')}><Megaphone size={20} aria-hidden />{t('newAnnouncement')}</button>}
             </div>
           </Dialog>
         )}
@@ -43,6 +47,7 @@ export default function QuickAdd() {
           {open === 'task' && <TaskForm onClose={close} />}
           {open === 'quiz' && <QuizForm subjectId="" onClose={close} />}
           {open === 'subject' && <NewSubject onClose={close} />}
+          {open === 'announcement' && <AnnouncementForm onClose={close} />}
         </Suspense>
       </>, document.body)}
     </>

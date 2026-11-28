@@ -11,6 +11,9 @@ export interface Session {
   rules2: boolean;
   /** تأكد أن القواعد المنشورة قديمة */
   rulesOld: boolean;
+  /** القواعد تدعم المذاكرة والملاحظات والبطاقات والإعلانات */
+  rules3: boolean;
+  rules3Old: boolean;
 }
 export const SessionContext = createContext<Session | null>(null);
 export const useSession = () => useContext(SessionContext)!;

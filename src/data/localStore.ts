@@ -21,9 +21,11 @@ export function createLocalStore(seed: () => Record<string, Data>, persistence?:
     let docs = children(path);
     if (where) {
       const [field, op, value] = where;
-      docs = docs.filter((d) => op === '=='
-        ? d[field] === value
-        : Array.isArray(d[field]) && (d[field] as unknown[]).some((x) => (value as unknown[]).includes(x)));
+      docs = docs.filter((d) => {
+        if (op === '==') return d[field] === value;
+        if (op === '>=') return (d[field] as string) >= (value as string);
+        return Array.isArray(d[field]) && (d[field] as unknown[]).some((x) => (value as unknown[]).includes(x));
+      });
     }
     if (orderBy) {
       const [field, dir] = orderBy;

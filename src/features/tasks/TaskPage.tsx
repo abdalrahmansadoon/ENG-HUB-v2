@@ -1,4 +1,4 @@
-import { ChevronDown, ClipboardList, Copy, ExternalLink, Pencil, SendHorizontal, Trash2 } from 'lucide-react';
+import { CalendarPlus, ChevronDown, ClipboardList, Copy, ExternalLink, Pencil, SendHorizontal, Trash2 } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useCollection, useDoc, useSession, useStore } from '../../data/context';
@@ -11,6 +11,7 @@ import { useFeedback } from '../../ui/feedback';
 import { Avatar, BackLink, Dialog, Empty, Status } from '../../ui/kit';
 import { usePrefs } from '../../ui/prefs';
 import { memberTone } from '../../ui/tone';
+import SessionForm from '../study/SessionForm';
 import { KindIcon } from '../subjects/KindIcon';
 import { useSubjects } from '../useSubjects';
 import { useTaskActions } from './actions';
@@ -29,7 +30,7 @@ export default function TaskPage({ personal = false }: { personal?: boolean }) {
   // المهمة الخاصة تنتظر التأكد من القواعد قبل أن نقول إنها غير موجودة.
   const loading = task.loading || (personal && !rules2 && !rulesOld);
   if (loading || !task.data) {
-    return <><BackLink to="/tasks" />{loading ? <Status loading /> : <Empty title={t('notFound')} />}</>;
+    return <><BackLink to="/tasks" />{loading ? <Status loading /> : <Empty page title={t('notFound')} />}</>;
   }
   const data: Task = personal ? { ...task.data, personal: true, audience: [user.uid], createdBy: user.uid } : task.data;
   const own: TaskResponse[] | null = personal
@@ -40,11 +41,12 @@ export default function TaskPage({ personal = false }: { personal?: boolean }) {
 
 function TaskView({ task, own }: { task: Task; own: TaskResponse[] | null }) {
   const navigate = useNavigate();
-  const { user, isAdmin } = useSession();
+  const { user, isAdmin, rules3 } = useSession();
   const { t, lang } = usePrefs();
   const { run, confirm } = useFeedback();
   const subjects = useSubjects();
   const { setStatus, remove } = useTaskActions();
+  const [planning, setPlanning] = useState(false);
   const shared = useCollection<TaskResponse>(own ? null : `tasks/${task.id}/responses`);
   const responses = own ? { data: own, loading: false, error: null } : shared;
   const profiles = useCollection<Profile>('profiles');
@@ -126,6 +128,10 @@ function TaskView({ task, own }: { task: Task; own: TaskResponse[] | null }) {
         </div>
 
         <div className="task-side">
+          {rules3 && assigned && !task.cancelled && mine?.status !== 'done' && (
+            <button type="button" className="btn tonal no-print" onClick={() => setPlanning(true)}><CalendarPlus size={18} aria-hidden />{t('planForTask')}</button>
+          )}
+          {planning && <SessionForm preset={{ taskId: task.id, subjectId: task.subjectId, goal: task.title.slice(0, 200) }} onClose={() => setPlanning(false)} />}
           {assigned && !task.cancelled && (
             <section className="group no-print">
               <div className="group-head"><h2>{t('myStatus')}</h2>{!responses.loading && <StatusTag status={view} />}</div>
@@ -176,7 +182,7 @@ function TaskView({ task, own }: { task: Task; own: TaskResponse[] | null }) {
         <p>{t('seriesDelete')}</p>
         <div className="menu">
           <button className="btn danger" onClick={() => destroy([])}>{t('deleteOnly')}</button>
-          <button className="btn danger" onClick={() => destroy(later)}>{t('deleteFollowing')} (<bdi>{later.length + 1}</bdi>)</button>
+          <button className="btn danger" onClick={() => destroy(later)}><span>{t('deleteFollowing')} (<bdi>{later.length + 1}</bdi>)</span></button>
           <button className="btn" onClick={() => setDialog(null)}>{t('cancel')}</button>
         </div>
       </Dialog>}

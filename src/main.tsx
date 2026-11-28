@@ -16,6 +16,7 @@ import './styles/base.css';
 import './styles/shell.css';
 import './styles/pages.css';
 import './styles/home.css';
+import './styles/study.css';
 import './styles/motion.css';
 import { FeedbackProvider } from './ui/feedback';
 import { PrefsProvider } from './ui/prefs';

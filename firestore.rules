@@ -439,6 +439,133 @@ service cloud.firestore {
         allow read: if signedIn();
       }
 
+      // مستند غير موجود؛ نجاح قراءته يعني أن قواعد المذاكرة والإعلانات منشورة.
+      match /probe/{docId} {
+        allow read: if signedIn();
+      }
+
+      function dayKey(v) { return v is string && v.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}'); }
+      function clockOrEmpty(v) { return v is string && v.matches('([0-2][0-9]:[0-5][0-9])?'); }
+      function between(v, min, max) { return v is int && v >= min && v <= max; }
+
+      // جلسات المذاكرة والأهداف والملاحظات والبطاقات: لصاحبها وحده، حتى المشرف لا يقرؤها.
+      match /users/{uid}/sessions/{sessionId} {
+        function validSession() {
+          let d = request.resource.data;
+          return d.keys().hasOnly(['subjectId', 'taskId', 'date', 'start', 'planned', 'actual', 'goal', 'notes', 'status', 'timer', 'createdAt'])
+            && text(d.subjectId, 0, 100)
+            && text(d.taskId, 0, 100)
+            && dayKey(d.date)
+            && clockOrEmpty(d.start)
+            && between(d.planned, 0, 720)
+            && between(d.actual, 0, 720)
+            && text(d.goal, 0, 200)
+            && text(d.notes, 0, 2000)
+            && d.status in ['planned', 'done', 'skipped'];
+        }
+        allow read, delete: if isSelf(uid);
+        allow create, update: if isSelf(uid) && validSession();
+      }
+
+      match /users/{uid}/goals/{day} {
+        allow read, delete: if isSelf(uid);
+        allow create, update: if isSelf(uid)
+          && request.resource.data.keys().hasOnly(['date', 'items'])
+          && request.resource.data.date == day && dayKey(day)
+          && request.resource.data.items is list && request.resource.data.items.size() <= 12;
+      }
+
+      match /users/{uid}/settings/planner {
+        allow read, delete: if isSelf(uid);
+        allow create, update: if isSelf(uid)
+          && request.resource.data.keys().hasOnly(['target', 'rest'])
+          && between(request.resource.data.target, 5, 720)
+          && request.resource.data.rest is list && request.resource.data.rest.size() <= 6;
+      }
+
+      // حالة الإشعارات: المقروء والمحذوف والتفضيلات.
+      match /users/{uid}/settings/inbox {
+        function shortList(v) { return v is list && v.size() <= 300; }
+        allow read, delete: if isSelf(uid);
+        allow create, update: if isSelf(uid)
+          && request.resource.data.keys().hasOnly(['readBefore', 'read', 'unread', 'dismissed', 'off', 'quietFrom', 'quietTo'])
+          && request.resource.data.readBefore is number
+          && shortList(request.resource.data.read)
+          && shortList(request.resource.data.unread)
+          && shortList(request.resource.data.dismissed)
+          && shortList(request.resource.data.off)
+          && clockOrEmpty(request.resource.data.quietFrom)
+          && clockOrEmpty(request.resource.data.quietTo);
+      }
+
+      match /users/{uid}/notes/{noteId} {
+        function okImage(urls, i) { return urls.size() <= i || (urls[i] is string && urls[i].matches('https://res[.]cloudinary[.]com/.*')); }
+        function validNote() {
+          let d = request.resource.data;
+          return d.keys().hasOnly(['title', 'body', 'subjectId', 'itemId', 'tags', 'images', 'createdAt', 'updatedAt'])
+            && text(d.title, 0, 140)
+            && text(d.body, 0, 20000)
+            && text(d.subjectId, 0, 100)
+            && text(d.itemId, 0, 100)
+            && d.tags is list && d.tags.size() <= 10
+            && d.images is list && d.images.size() <= 6
+            && okImage(d.images, 0) && okImage(d.images, 1) && okImage(d.images, 2) && okImage(d.images, 3) && okImage(d.images, 4) && okImage(d.images, 5)
+            && d.updatedAt == request.time;
+        }
+        allow read, delete: if isSelf(uid);
+        allow create: if isSelf(uid) && validNote() && request.resource.data.createdAt == request.time;
+        allow update: if isSelf(uid) && validNote() && request.resource.data.createdAt == resource.data.createdAt;
+      }
+
+      match /users/{uid}/decks/{deckId} {
+        allow read, delete: if isSelf(uid);
+        allow create, update: if isSelf(uid)
+          && request.resource.data.keys().hasOnly(['name', 'subjectId', 'createdAt'])
+          && text(request.resource.data.name, 1, 80)
+          && text(request.resource.data.subjectId, 0, 100);
+      }
+
+      match /users/{uid}/cards/{cardId} {
+        function validCard() {
+          let d = request.resource.data;
+          return d.keys().hasOnly(['deckId', 'front', 'back', 'image', 'tags', 'difficulty', 'ease', 'interval', 'due', 'reviews', 'lapses', 'reviewedAt', 'history', 'createdAt'])
+            && text(d.deckId, 1, 100)
+            && text(d.front, 1, 2000)
+            && text(d.back, 1, 4000)
+            && cloudinaryOrEmpty(d.image)
+            && d.tags is list && d.tags.size() <= 10
+            && d.difficulty in ['easy', 'medium', 'hard']
+            && d.ease is number
+            && between(d.interval, 0, 365)
+            && dayKey(d.due)
+            && d.history is list && d.history.size() <= 20;
+        }
+        allow read, delete: if isSelf(uid);
+        allow create, update: if isSelf(uid) && validCard();
+      }
+
+      // إعلانات الدفعة: يقرؤها الجميع ويكتبها المشرف.
+      match /announcements/{announcementId} {
+        function validAnnouncement() {
+          let d = request.resource.data;
+          return d.keys().hasOnly(['title', 'body', 'kind', 'date', 'subjectId', 'pinned', 'createdBy', 'createdAt'])
+            && text(d.title, 1, 140)
+            && text(d.body, 0, 4000)
+            && d.kind in ['news', 'date', 'subject', 'exam', 'schedule']
+            && (d.date == '' || dayKey(d.date))
+            && text(d.subjectId, 0, 100)
+            && d.pinned is bool;
+        }
+        allow read: if signedIn();
+        allow create: if v2Admin() && validAnnouncement()
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.createdAt == request.time;
+        allow update: if v2Admin() && validAnnouncement()
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if v2Admin();
+      }
+
       match /profiles/{uid} {
         allow read: if signedIn();
         allow create, update: if isSelf(uid)

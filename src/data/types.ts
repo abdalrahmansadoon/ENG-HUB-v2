@@ -30,6 +30,8 @@ export interface Task {
   seriesId?: string;
   /** مهمة خاصة محفوظة عند صاحبها وحده */
   personal?: boolean; done?: boolean; doneAt?: number;
+  /** وقت آخر تغيير للموعد، لإشعار أصحاب المهمة */
+  dueChangedAt?: number;
 }
 export type ResponseStatus = 'accepted' | 'declined' | 'done' | 'submitted' | 'review' | 'rejected';
 export interface TaskResponse {
@@ -59,3 +61,44 @@ export interface Quiz {
 }
 export interface AnswerKey { id: string; answers: number[] }
 export interface Attempt { id: string; name: string; answers: number[]; submittedAt: number }
+
+/* بيانات المذاكرة خاصة بصاحبها: users/{uid}/… */
+export type SessionStatus = 'planned' | 'done' | 'skipped';
+export interface StudySession {
+  id: string; subjectId: string; taskId: string;
+  /** YYYY-MM-DD */
+  date: string;
+  /** HH:mm أو فارغ */
+  start: string;
+  /** بالدقائق */
+  planned: number; actual: number;
+  goal: string; notes: string; status: SessionStatus;
+  /** سجلها مؤقت التركيز */
+  timer?: boolean;
+  createdAt: number;
+}
+export interface Goal { text: string; done: boolean }
+/** أهداف يوم واحد. المعرف هو التاريخ. */
+export interface DayGoals { id: string; date: string; items: Goal[] }
+export interface PlannerSettings { id: string; target: number; rest: number[] }
+export interface Note {
+  id: string; title: string; body: string; subjectId: string; itemId: string;
+  tags: string[]; images: string[]; createdAt: number; updatedAt: number;
+}
+export type Difficulty = 'easy' | 'medium' | 'hard';
+export interface Deck { id: string; name: string; subjectId: string; createdAt: number }
+export interface Review { at: number; rating: number }
+export interface Card {
+  id: string; deckId: string; front: string; back: string; image: string; tags: string[]; difficulty: Difficulty;
+  ease: number;
+  /** الأيام حتى المراجعة التالية */
+  interval: number;
+  due: string; reviews: number; lapses: number; reviewedAt?: number; history: Review[]; createdAt: number;
+}
+export type AnnouncementKind = 'news' | 'date' | 'subject' | 'exam' | 'schedule';
+export interface Announcement {
+  id: string; title: string; body: string; kind: AnnouncementKind;
+  /** تاريخ الحدث، أو فارغ */
+  date: string;
+  subjectId: string; pinned: boolean; createdBy: string; createdAt: number;
+}

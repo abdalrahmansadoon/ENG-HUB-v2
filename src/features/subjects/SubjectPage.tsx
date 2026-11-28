@@ -20,7 +20,7 @@ export default function SubjectPage() {
   const subject = useDoc<Subject>(`subjects/${subjectId}`);
   const { t } = usePrefs();
   if (subject.loading || !subject.data) {
-    return <><BackLink to="/subjects" />{subject.loading ? <Status loading /> : <Empty title={t('notFound')} />}</>;
+    return <><BackLink to="/subjects" />{subject.loading ? <Status loading /> : <Empty page title={t('notFound')} />}</>;
   }
   return <SubjectView key={subjectId} subject={subject.data} />;
 }

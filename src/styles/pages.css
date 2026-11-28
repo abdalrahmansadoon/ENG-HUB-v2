@@ -178,7 +178,7 @@ label.answer:hover { border-color: var(--control); }
 
 .view-switch { justify-self: start; }
 .view-switch > * { min-width: 7.5rem; }
-@media (max-width: 599px) { .view-switch { justify-self: stretch; } .view-switch > * { flex: 1 1 0; } }
+@media (max-width: 599px) { .view-switch { justify-self: stretch; } .view-switch > * { flex: 1 1 0; min-width: 0; } }
 .filter-bar { display: grid; gap: .6rem; }
 .filter-bar .filters select { flex: 1 1 9rem; width: auto; max-width: none; min-width: 0; }
 
